@@ -5,27 +5,19 @@ enum LexingState {
   SPACE, 
   SYMBOL, 
   COMMENT, 
+  STRING,
   NUMBER
 }
 
 // Contains the basic stuff for an input state.
 class InputState {
 
-  // Where we were in the string some states ago.
-  previous_index : number;
-  
   // Where we are in the string.
   current_index : number;
 
   // Initial state.
   constructor(public input : string) { 
-    this.previous_index = 0;
     this.current_index = 0;
-  }
-
-  // Just move forward the previou pointer to match the current pointer.
-  reset_slice() : void {
-    this.previous_index = this.current_index;
   }
 
   // The actual current character.
@@ -85,11 +77,6 @@ class Lexer {
   }
 
   // Delegate to input state.
-  previous_index() : number {
-    return this.input_state.previous_index;
-  }
-
-  // Delegate to input state.
   current_character() : string {
     return this.input_state.current_character();
   }
@@ -111,6 +98,10 @@ class Lexer {
 
   is_rparen() : boolean {
     return /\)/.test(this.current_character());
+  }
+
+  is_paren() : boolean {
+    return this.is_rparen() || this.is_lparen();
   }
 
   is_symbol() : boolean {
@@ -150,18 +141,18 @@ class Lexer {
     } else {
       throw new Error("Unknown start of token: token start = ." + this.current_character());
     }
-    this.input_state.reset_slice();
     this.string_accumulator = "";
   }
 
   // Accumulate characters until we hit a space character.
-  accumulate_until_space() : void {
-    while (!this.is_space()) {
+  accumulate_until_space_or_paren() : void {
+    while (!(this.is_space() || this.is_paren())) {
       this.string_accumulator += this.current_character();
       this.advance();
     }
   }
 
+  // Consume everything until we hit a newline without accumulating anything.
   skip_until_newline() : void {
     while (!/\n/.test(this.current_character())) {
       this.advance();
@@ -178,21 +169,23 @@ class Lexer {
         this.accumulator.push(new Token(this.current_character(), this.current_state));
         break;
       case LexingState.SPACE:
+        this.skip_until_newline();
         break;
       case LexingState.SYMBOL:
-        this.accumulate_until_space();
+        this.accumulate_until_space_or_paren();
         this.accumulator.push(new Token(this.string_accumulator, this.current_state));
         break;
       case LexingState.COMMENT:
         this.skip_until_newline();
         break;
       case LexingState.NUMBER:
-        this.accumulate_until_space();
+        this.accumulate_until_space_or_paren();
         this.accumulator.push(new Token(this.string_accumulator, this.current_state));
         break;
       default:
         throw new Error("This should not happen.");
     }
+    // Advance one more time and put us in the correct state for lexing the next token.
     this.advance_and_update();
   }
 
