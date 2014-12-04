@@ -25,8 +25,18 @@ class InputState {
     return this.input[this.current_index];
   }
 
+  // See if we are at the end of input.
+  is_eof() : boolean {
+    return !this.input[this.current_index];
+  }
+
   // Move forward one character.
   advance() : void {
+    // Do nothing if we are at the end of input.
+    if (this.input[this.current_index] === undefined) {
+      console.log("Already at the end of input.");
+      return;
+    }
     this.current_index += 1;
   }
 
@@ -34,7 +44,7 @@ class InputState {
 
 class Token {
 
-  constructor(public characters : string, type : LexingState) { }
+  constructor(public characters : string, public type : LexingState) { }
 
 }
 
@@ -120,12 +130,9 @@ class Lexer {
     return /"/.test(this.current_character());
   }
 
-  // Advance the pointer as necessary and update the lexing state.
-  advance_and_update() : void {
-    this.advance();
-    while (this.is_space()) {
-      this.advance();
-    }
+  // Advancing should be handled by someone else.
+  update() : void {
+    this.string_accumulator = "";
     if (this.is_lparen()) {
       this.current_state = LexingState.LPAREN;
     } else if (this.is_rparen()) {
@@ -138,10 +145,11 @@ class Lexer {
       this.current_state = LexingState.NUMBER;
     } else if (this.is_string()) {
       this.current_state = LexingState.STRING;
+    } else if (this.is_space()) {
+      this.current_state = LexingState.SPACE;
     } else {
       throw new Error("Unknown start of token: token start = ." + this.current_character());
     }
-    this.string_accumulator = "";
   }
 
   // Accumulate characters until we hit a space character.
@@ -159,17 +167,30 @@ class Lexer {
     }
   }
 
+  // Go until we hit non-space character.
+  skip_while_space() : void {
+    while (/\s/.test(this.current_character())) {
+      this.advance();
+    }
+  }
+
   // Accumulate the next token and set up the state for the next token lex.
-  lex_next() : void {
+  lex_next() : Array<Token> {
+    if (this.input_state.is_eof()) {
+      console.log("Nothing left to lex. At end of input.");
+      return this.accumulator;
+    }
     switch(this.current_state) {
       case LexingState.LPAREN:
         this.accumulator.push(new Token(this.current_character(), this.current_state));
+        this.advance();
         break;
       case LexingState.RPAREN:
         this.accumulator.push(new Token(this.current_character(), this.current_state));
+        this.advance();
         break;
       case LexingState.SPACE:
-        this.skip_until_newline();
+        this.skip_while_space();
         break;
       case LexingState.SYMBOL:
         this.accumulate_until_space_or_paren();
@@ -186,7 +207,8 @@ class Lexer {
         throw new Error("This should not happen.");
     }
     // Advance one more time and put us in the correct state for lexing the next token.
-    this.advance_and_update();
+    this.update();
+    return null;
   }
 
 }
