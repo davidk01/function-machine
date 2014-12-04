@@ -1,4 +1,6 @@
 /// <reference path="lexingstate.ts" />
+/// <reference path="token.ts" />
+
 // Contains the basic stuff for an input state.
 class InputState {
 
@@ -29,12 +31,6 @@ class InputState {
     }
     this.current_index += 1;
   }
-
-}
-
-class Token {
-
-  constructor(public characters : string, public type : LexingState) { }
 
 }
 
