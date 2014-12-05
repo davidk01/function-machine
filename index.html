@@ -5,6 +5,15 @@
 <title>title</title>
 <link rel="stylesheet" href="style.css">
 <script src="main.js"></script>
+<script type="text/javascript">
+// Small test snippet while prototyping.
+l = new Lexer("(+ 1 2 3 (+ 1 2 3 abc) ())");
+while (!l.lex_next()) {
+  l.lex_next();
+}
+tokens = l.lex_next();
+parse_results = Grammar.parse(tokens);
+</script>
 </head>
 <body>
 <!-- page content -->
