@@ -10,13 +10,13 @@ class Grammar {
   static symb : Parser = Parser.m(x => x.type === LexingState.SYMBOL);
 
   // Left paren.
-  static lparen : Parser = Parser.m(x => x.type === LexingState.LPAREN);
+  static lparen : Parser = Parser.m(x => x.type === LexingState.LPAREN).transformer((x : Token) : any => "(");
 
   // Right paren.
-  static rparen : Parser = Parser.m(x => x.type === LexingState.RPAREN);
+  static rparen : Parser = Parser.m(x => x.type === LexingState.RPAREN).transformer((x : Token) : any => ")");
 
   // Empty list: ().
-  static empty_list : Parser = Grammar.lparen.then(Grammar.rparen);
+  static empty_list : Parser = Grammar.lparen.then(Grammar.rparen).transformer((x : Token) : any => []);
 
   // Atomic expressions: empty list | symbol | number.
   static atomic : Parser = Grammar.num.or(Grammar.symb).or(Grammar.empty_list);
@@ -31,4 +31,5 @@ class Grammar {
   static parse(input : Indexable) : any {
     return Grammar.s_expr.parse(new IndexableContext(input));
   }
+
 }
