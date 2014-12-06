@@ -16,16 +16,10 @@ textarea {
 
 </style>
 <script src="main.js"></script>
-<script type="text/javascript">
-</script>
 </head>
 <body>
   <!-- examples -->
-  <input type="button" value="anonymous function" onclick="set_example('anonymous-function')"></input>
-  <input type="button" value="function application" onclick="set_example('function-application')"></input>
-  <input type="button" value="if/then/else" onclick="set_example('if-then-else')"></input>
-  <input type="button" value="let x in e" onclick="set_example('let-in')"></input>
-  <input type="button" value="pattern matching" onclick="set_example('pattern-matching')"></input>
+  <div id="buttons"></div>
 
   <!-- input -->
   <textarea id="input" rows="10" columns="75" style="width: 100%"></textarea>
@@ -38,4 +32,7 @@ textarea {
   <!-- output -->
   <textarea id="output" rows="10" columns="75" style="width: 100%"></textarea>
 </body>
+<script type="text/javascript">
+instantiate_examples();
+</script>
 </html>
