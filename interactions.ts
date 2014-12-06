@@ -24,11 +24,7 @@ function ast_area() : HTMLTextAreaElement {
 
 function lex_input() : Array<any> {
   var input_text : string = input_area().value;
-  var lexer : Lexer = new Lexer(input_text);
-  while (!lexer.lex_next()) {
-    lexer.lex_next();
-  }
-  var lex_result : Array<any> = lexer.lex_next();
+  var lex_result : Array<Token> = L.lex(input_text);
   var lex_result_json : string = JSON.stringify(lex_result);
   console.log(lex_result_json);
   lexemes_area().value = lex_result_json;

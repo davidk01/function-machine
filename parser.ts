@@ -1,22 +1,22 @@
 /// <reference path="combinators.ts" />
-/// <reference path="lexingstate.ts" />
+/// <reference path="lexer.ts" />
 /// <reference path="ast.ts" />
 
 class G {
   
   // Number token.
-  static num : Parser = Parser.m(x => x.type === LexingState.NUMBER).transformer(
+  static num : Parser = Parser.m(x => x.type === TokenType.NUMBER).transformer(
     (x : Token) : ASTNode => new Num(parseInt(x.characters)));
 
   // Symbol token.
-  static symb : Parser = Parser.m(x => x.type === LexingState.SYMBOL).transformer(
+  static symb : Parser = Parser.m(x => x.type === TokenType.SYMBOL).transformer(
     (x : Token) : ASTNode => new Symbol(x.characters));
 
   // Left paren.
-  static lparen : Parser = Parser.m(x => x.type === LexingState.LPAREN);
+  static lparen : Parser = Parser.m(x => x.type === TokenType.LPAREN);
 
   // Right paren.
-  static rparen : Parser = Parser.m(x => x.type === LexingState.RPAREN);
+  static rparen : Parser = Parser.m(x => x.type === TokenType.RPAREN);
 
   // Empty list: ().
   static empty_list : Parser = G.lparen.then(G.rparen).transformer(
