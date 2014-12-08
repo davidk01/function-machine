@@ -25,6 +25,7 @@ function ast_area() : HTMLTextAreaElement {
   return (<HTMLTextAreaElement>document.querySelector('#output'));
 }
 
+// Generate the lexical elements.
 function lex_input() : Array<any> {
   var input_text : string = input_area().value;
   var lex_result : Array<Token> = L.lex(input_text);
@@ -33,11 +34,20 @@ function lex_input() : Array<any> {
   return lex_result;
 }
 
+// Generate s-expressions from the lexical elements.
 function parse_input() {
   var lexemes = lex_input();
   var ast = G.parse(lexemes);
   ast_area().value = JSON.stringify(ast);
   return ast;
+}
+
+// Refine the s-expressions.
+function ast_input() {
+  var s_exprs : Array<ASTNode> = parse_input();
+  var refined_ast = T.refine_sexprs(s_exprs);
+  ast_area().value = JSON.stringify(refined_ast);
+  return refined_ast;
 }
 
 function instantiate_examples() {

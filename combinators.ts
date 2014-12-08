@@ -26,15 +26,14 @@ class IndexableContext {
 
   current_element : any;
 
-  constructor(public input : Indexable) { 
+  constructor(private input : Indexable) { 
     this.current_index = 0;
     this.current_element = input[this.current_index];
   }
 
-  advance() : number {
+  advance() : void {
     this.current_index += 1;
     this.current_element = this.input[this.current_index]
-    return this.current_index;
   }
 
   reset(index : number) : void {
@@ -101,11 +100,11 @@ class Parser {
 // Basic parser that just calls the matcher and advances the input or returns a failure.
 class BasicParser extends Parser {
 
-  constructor(public matcher : Matcher) { super(); }
+  constructor(private matcher : Matcher) { super(); }
 
   parse(input : IndexableContext) : any {
     var current_element : any = input.current_element;
-    if (this.matcher(current_element)) {
+    if (this.is_not_null(current_element) && this.matcher(current_element)) {
       input.advance();
       return current_element;
     }
