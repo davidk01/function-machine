@@ -1,4 +1,3 @@
-
 class ASTNode { 
 
   refine() : ASTNode { return this; }
@@ -25,7 +24,8 @@ class List extends ASTNode {
 
   constructor(private list : Array<ASTNode>) { super(); }
 
-  refine() : ASTNode {
+  refine() : List {
+    throw new Error();
     return null;
   }
 
@@ -35,7 +35,7 @@ class Tuple extends ASTNode {
 
   constructor(private elements : Array<ASTNode>) { super(); }
 
-  refine() : ASTNode {
+  refine() : Tuple {
     return new Tuple(this.elements.map(x => x.refine()));
   }
 
@@ -57,17 +57,6 @@ class SExpr extends ASTNode {
     this.tail = expressions.slice(1);
   }
 
-  // Arguments must be a list of symbols.
-  refine_argument_definitions() : Array<Symbol> {
-    return this.expressions.map(x => {
-      if (x.symbol()) {
-        return (<Symbol>x);
-      } else {
-        throw new Error("Function argument definitions must be symbols.");
-      }
-    });
-  }
-
   // Let bindings come in pairs of (variable, value).
   refine_let_bindings() : Array<BindingPair> {
     if (this.expressions.length % 2 != 0) {
@@ -86,25 +75,37 @@ class SExpr extends ASTNode {
     return accumulator;
   }
 
-  // a.k.a. normalization
-  refine() : ASTNode {
-    var exprs : Array<ASTNode> = this.expressions;
-    var refined_head : ASTNode = exprs[0].refine();
-    if (refined_head.symbol()) {
-      // Dealing with a symbol so lets figure out if we need to refine it further
-      switch((<Symbol>refined_head).symb) {
-        case 'fun': // function definition
-          return new AnonymousFunction((<SExpr>exprs[1]).refine_argument_definitions(),
-            new FunctionBody(exprs[2].refine()));
-        case 'let': // let binding
-          return new LetExpressions((<SExpr>exprs[1]).refine_let_bindings(), exprs[2].refine());
-        case 'match': // pattern matching
-          return new MatchExpression(exprs[1].refine_match_value(), exprs[2].refine_match_patterns());
-        case 'if': // conditional
-          return new IfExpression(exprs[1].refine_if_condition(), exprs[2].refine_true_branch(), exprs[3].refine_false_branch());
-        default:
-          throw new Error('Unknown symbol: ' + refined_head.symbol);
+  // Need to make sure everything is a symbol.
+  refine_argument_definitions() : Array<Symbol> {
+    var symbols : Array<Symbol> = this.tail.map((element, index : number, elements) => {
+      if (!element.symbol()) {
+        throw new Error("Function arguments must be symbols.");
       }
+      return (<Symbol>element);
+    });
+    return [this.head].concat(symbols);
+  }
+
+  // Pattern matching is its own set of problems so as in the book we only focus on very simple
+  // patterns that are one level deep. Extension to more general patterns is for future enhancements.
+  refine_match_patterns() : Array<PatternPair> {
+    throw new Error();
+  }
+
+  // Can't return anything specific because it can be any number of things like function call, anonymous function, match
+  // expression, etc.
+  refine() : ASTNode {
+    switch(this.head.symb) {
+      case 'fun': // function definition
+        return new AnonymousFunction((<SExpr>this.tail[0]).refine_argument_definitions(), new FunctionBody(this.tail[1].refine()));
+      case 'let': // let binding
+        return new LetExpressions((<SExpr>this.tail[0]).refine_let_bindings(), this.tail[1].refine());
+      case 'match': // pattern matching
+        return new MatchExpression(this.tail[0].refine(), (<SExpr>this.tail[1]).refine_match_patterns());
+      case 'if': // conditional
+        return new IfExpression(this.tail[0].refine(), this.tail[1].refine(), this.tail[2].refine());
+      default:
+        throw new Error('Unknown symbol: ' + refined_head.symbol);
     }
     // Otherwise it must be a function call.
     return new FunctionCall((<Symbol>refined_head), exprs.slice(1).map(x => x.refine()));
