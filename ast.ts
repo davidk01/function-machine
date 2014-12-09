@@ -55,6 +55,11 @@ class SExpr extends ASTNode {
     });
   }
 
+  // Nothing interesting going on. We just recursively refine each expression in the body.
+  refine_definition_body() : Array<ASTNode> {
+    return this.expressions.map(x => x.refine());
+  }
+
   // a.k.a. normalization
   refine() : ASTNode {
     var exprs : Array<ASTNode> = this.expressions;
@@ -63,7 +68,7 @@ class SExpr extends ASTNode {
       // Dealing with a symbol so lets figure out if we need to refine it further
       switch((<Symbol>refined_head).symb) {
         case 'fun': // function definition
-          return new AnonymousFunction((<SExpr>exprs[1]).refine_argument_definitions(), exprs[2].refine_definition_body());
+          return new AnonymousFunction((<SExpr>exprs[1]).refine_argument_definitions(), new FunctionBody((<SExpr>exprs[2]).refine_definition_body()));
         case 'let': // let binding
           return new LetExpressions(exprs[1].refine_let_bindings(), exprs[2].refine_let_body());
         case 'match': // pattern matching
@@ -83,13 +88,24 @@ class SExpr extends ASTNode {
 // Non-initial nodes that only result from the refinement process.
 class FunctionCall extends ASTNode {
 
-  constructor(private name : Symbol, private args : Array<ASTNode>) { super(); }
+  constructor(private name : Symbol, private args : Array<Symbol>) { super(); }
 
 }
 
 class AnonymousFunction extends ASTNode {
 
-  constructor(private args : Array<Symbol>, private body : ASTNode) { super(); }
+  constructor(private args : Array<Symbol>, private body : FunctionBody) { super(); }
 
 }
 
+class FunctionBody extends ASTNode {
+
+  constructor(private exprs : Array<ASTNode>) { super(); }
+
+}
+
+class LetExpressions extends ASTNode {
+
+  constructor(private bindings : Array<BindingPair>, private body : ASTNode) { super(); }
+
+}
