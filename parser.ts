@@ -8,11 +8,11 @@ class G {
   
   // Number token.
   static num : Parser = Parser.m(x => x.type === TokenType.NUMBER).transformer(
-    (x : Token) : ASTNode => new Num(parseInt(x.characters)));
+    (x : Token) : Num => new Num(parseInt(x.characters)));
 
   // Symbol token.
   static symb : Parser = Parser.m(x => x.type === TokenType.SYMBOL).transformer(
-    (x : Token) : ASTNode => new Symbol(x.characters));
+    (x : Token) : Symbol => new Symbol(x.characters));
 
   // Left paren.
   static lparen : Parser = Parser.m(x => x.type === TokenType.LPAREN);
@@ -35,16 +35,16 @@ class G {
   // Tuple: <s-expr, ..., s-expr>.
   static tuple : Parser = G.langle.then(Parser.delay(x => G.s_expr)).then(
     Parser.delay(x => G.s_expr.zero_or_more())).then(G.rangle).transformer(
-      (x : Array<any>) => new Tuple([x[1]].concat(x[2])));
+      (x : Array<any>) : Tuple => new Tuple([x[1]].concat(x[2])));
 
   // List: [s-expr, ..., s-expr].
   static non_empty_data_list : Parser = G.lbracket.then(Parser.delay(x => G.s_expr)).then(
     Parser.delay(x => G.s_expr.zero_or_more())).then(G.rbracket).transformer(
-      (x : Array<any>) => new List([x[1]].concat(x[2])));
+      (x : Array<any>) : List => new List([x[1]].concat(x[2])));
 
   // Empty list: [].
   static empty_data_list : Parser = G.lbracket.then(G.rbracket).transformer(
-    (x : Array<any>) => new List([]));
+    (x : Array<any>) : List => new List([]));
 
   // Atomic expressions: empty list | symbol | number.
   static atomic : Parser = G.non_empty_data_list.or(G.empty_data_list).or(G.tuple).or(G.num).or(G.symb);
@@ -52,7 +52,7 @@ class G {
   // Non-empty list: (atomic s-expr*).
   static list : Parser = G.lparen.then(G.atomic).then(
     Parser.delay(x => G.s_expr.zero_or_more())).then(G.rparen).transformer(
-      (x : Array<any>) : ASTNode => new SExpr([x[1]].concat(x[2])));
+      (x : Array<any>) : SExpr => new SExpr([x[1]].concat(x[2])));
 
   // s-expr: atomic | empty list | non-empty list.
   static s_expr : Parser = G.atomic.or(G.list);

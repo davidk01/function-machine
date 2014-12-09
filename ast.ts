@@ -1,3 +1,4 @@
+
 class ASTNode { 
 
   refine() : ASTNode { return this; }
@@ -42,7 +43,19 @@ class Tuple extends ASTNode {
 
 class SExpr extends ASTNode {
 
-  constructor(private expressions : Array<ASTNode>) { super(); }
+  private head : Symbol;
+
+  private tail : Array<ASTNode>;
+
+  constructor(private expressions : Array<ASTNode>) { 
+    super(); 
+    if (expressions[0].symbol()) {
+      this.head = (<Symbol>expressions[0]);
+    } else {
+      throw new Error("Head of SExpr must be a symbol.");
+    }
+    this.tail = expressions.slice(1);
+  }
 
   // Arguments must be a list of symbols.
   refine_argument_definitions() : Array<Symbol> {
@@ -55,9 +68,22 @@ class SExpr extends ASTNode {
     });
   }
 
-  // Nothing interesting going on. We just recursively refine each expression in the body.
-  refine_definition_body() : Array<ASTNode> {
-    return this.expressions.map(x => x.refine());
+  // Let bindings come in pairs of (variable, value).
+  refine_let_bindings() : Array<BindingPair> {
+    if (this.expressions.length % 2 != 0) {
+      throw new Error("Let bindings must have even length.");
+    }
+    var variables : Array<Symbol> = this.expressions.reduce((m, e, index, exprs) : Array<Symbol> => {
+      index % 2 == 0 ? m.push(e.refine()) : false;
+      return m; 
+    }, []);
+    var expressions : Array<ASTNode> = this.expressions.reduce((m, e, index, exprs) : Array<ASTNode> => {
+      index % 2 == 1 ? m.push(e.refine()) : false;
+      return m; 
+    }, []);
+    var accumulator : Array<BindingPair> = [];
+    variables.forEach((current_var, index, vars) => accumulator.push(new BindingPair(current_var, expressions[index])));
+    return accumulator;
   }
 
   // a.k.a. normalization
@@ -68,9 +94,10 @@ class SExpr extends ASTNode {
       // Dealing with a symbol so lets figure out if we need to refine it further
       switch((<Symbol>refined_head).symb) {
         case 'fun': // function definition
-          return new AnonymousFunction((<SExpr>exprs[1]).refine_argument_definitions(), new FunctionBody((<SExpr>exprs[2]).refine_definition_body()));
+          return new AnonymousFunction((<SExpr>exprs[1]).refine_argument_definitions(),
+            new FunctionBody(exprs[2].refine()));
         case 'let': // let binding
-          return new LetExpressions(exprs[1].refine_let_bindings(), exprs[2].refine_let_body());
+          return new LetExpressions((<SExpr>exprs[1]).refine_let_bindings(), exprs[2].refine());
         case 'match': // pattern matching
           return new MatchExpression(exprs[1].refine_match_value(), exprs[2].refine_match_patterns());
         case 'if': // conditional
@@ -100,12 +127,24 @@ class AnonymousFunction extends ASTNode {
 
 class FunctionBody extends ASTNode {
 
-  constructor(private exprs : Array<ASTNode>) { super(); }
+  constructor(private exprs : ASTNode) { super(); }
 
 }
 
 class LetExpressions extends ASTNode {
 
   constructor(private bindings : Array<BindingPair>, private body : ASTNode) { super(); }
+
+}
+
+class BindingPair extends ASTNode {
+
+  constructor(private variable : Symbol, private value : ASTNode) { super(); }
+
+}
+
+class MatchExpression extends ASTNode {
+
+  constructor(private value : ASTNode, private patterns : Array<MatchPattern>) { super(); }
 
 }
