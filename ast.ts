@@ -1,9 +1,16 @@
+/// <reference path="vm.ts" />
 // Top of syntax tree hierarchy.
+var I = Instruction;
+
 class ASTNode { 
 
   refine() : ASTNode { return this; }
 
   symbol() : boolean { return false; }
+
+  compile() : Array<Instruction> {
+    throw new Error("Implement in subclasses.");
+  }
 
 }
 
@@ -11,6 +18,11 @@ class ASTNode {
 class Num extends ASTNode { 
 
   constructor(private num : number) { super(); }
+
+  // Load the constant and push it to the heap.
+  compile() : Array<Instruction> {
+    return [I.i("load", this.num), I.i("mkbasic")];
+  }
 
 }
 
@@ -20,6 +32,12 @@ class Symbol extends ASTNode {
   constructor(public symb : string) { super(); }
 
   symbol() : boolean { return true; }
+
+  // Load the heap reference that the variable points to. Need to know if the variable
+  // is on the current stack or not
+  compile() : Array<Instruction> {
+    throw new Error();
+  }
 
 }
 
