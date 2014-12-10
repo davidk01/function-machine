@@ -105,18 +105,24 @@ class SExpr extends ASTNode {
       case 'if': // conditional
         return new IfExpression(this.tail[0].refine(), this.tail[1].refine(), this.tail[2].refine());
       default:
-        throw new Error('Unknown symbol: ' + refined_head.symbol);
+        throw new Error('Unknown symbol: ' + this.head.symb);
     }
     // Otherwise it must be a function call.
-    return new FunctionCall((<Symbol>refined_head), exprs.slice(1).map(x => x.refine()));
+    return new FunctionCall(this.head, this.tail.map((x : ASTNode) : ASTNode => x.refine()));
   }
+
+}
+
+class IfExpression extends ASTNode {
+
+  constructor(private test : ASTNode, private true_branch : ASTNode, private false_branch : ASTNode) { super(); }
 
 }
 
 // Non-initial nodes that only result from the refinement process.
 class FunctionCall extends ASTNode {
 
-  constructor(private name : Symbol, private args : Array<Symbol>) { super(); }
+  constructor(private name : Symbol, private args : Array<ASTNode>) { super(); }
 
 }
 
@@ -146,6 +152,12 @@ class BindingPair extends ASTNode {
 
 class MatchExpression extends ASTNode {
 
-  constructor(private value : ASTNode, private patterns : Array<MatchPattern>) { super(); }
+  constructor(private value : ASTNode, private patterns : Array<PatternPair>) { super(); }
+
+}
+
+class PatternPair extends ASTNode {
+
+  constructor(private pattern : ASTNode, private expression : ASTNode) { super(); }
 
 }
