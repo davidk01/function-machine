@@ -21,7 +21,7 @@ class Num extends ASTNode {
 
   // Load the constant and push it to the heap.
   compile() : Array<Instruction> {
-    return [I.i("load", this.num), I.i("mkbasic")];
+    return [I.LOAD(this.num), I.MKBASIC()];
   }
 
 }
@@ -199,8 +199,9 @@ class LetExpressions extends ASTNode {
 
   // Compile the bindings. Compile the body. Stick them together.
   compile() : Array<Instruction> {
-    var compiled_bindings = this.bindings.reduce((previous, current, index, bindings) => {
-      return previous.concat(current.compile());
+    var compiled_bindings = this.bindings.reduce((previous : Array<Instruction>,
+      current : BindingPair, index : number, bindings : Array<BindingPair>) => {
+        return previous.concat(current.compile());
     }, []);
     return compiled_bindings.concat(this.body.compile());
   }
@@ -210,11 +211,13 @@ class LetExpressions extends ASTNode {
 // The actual binding pair that appears in let expressions.
 class BindingPair extends ASTNode {
 
+  private variable_location : number;
+
   constructor(private variable : Symbol, private value : ASTNode) { super(); }
 
   // Compile the variable. Compile the value. Perform the assignment.
   compile() : Array<Instruction> {
-    throw new Error();
+    return [I.INITVAR()].concat(this.value.compile()).concat([I.STOREA(this.variable_location)]);
   }
 
 }

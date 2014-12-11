@@ -1,9 +1,32 @@
+enum Instructions {
+  LOAD,
+  MKBASIC,
+  INITVAR,
+  STOREA
+}
+
 class Instruction { 
 
-  static i(instruction : string, ...args : Array<any>) {
-    return new Instruction(instruction, args);
+  // Load a constant.
+  static LOAD(...args : Array<any>) {
+    return new Instruction(Instructions.LOAD, args);
   }
 
-  constructor(private instruction : string, private args : Array<any>) { }
+  // Make a basic variable of whatever sitting on top of the stack.
+  static MKBASIC() {
+    return new Instruction(Instructions.MKBASIC, []);
+  }
+
+  // Initialize a variable on top of stack. Basically a null pointer.
+  static INITVAR() {
+    return new Instruction(Instructions.INITVAR, []);
+  }
+
+  // Store whatever is on top of the stack at the given location on the stack.
+  static STOREA(loc : number) {
+    return new Instruction(Instructions.STOREA, [loc]);
+  }
+
+  constructor(private instruction : Instructions, private args : Array<any>) { }
 
 }
