@@ -21,7 +21,7 @@ class Num extends ASTNode {
 
   // Load the constant and push it to the heap.
   compile() : Array<Instruction> {
-    return [I.LOAD(this.num), I.MKBASIC()];
+    return [I.LOAD({constant: this.num}), I.MKBASIC()];
   }
 
 }
@@ -39,7 +39,7 @@ class Symbol extends ASTNode {
 
   // Load a variable accounting for stack nesting and stack location on that stack level.
   compile() : Array<Instruction> {
-    return [I.LOADVAR(this.stack, this.stack_location)];
+    return [I.LOADVAR({stack: this.stack, stack_location: this.stack_location})];
   }
 
 }
@@ -163,9 +163,9 @@ class IfExpression extends ASTNode {
   // Nothing too fancy. Just some labels and jumps.
   // [test] jumpz(false) [true] jump(end) false [false] end
   compile() : Array<Instruction> {
-    return this.test.compile().concat([I.JUMPZ(this.false_branch_label)]).concat(this.true_branch.compile()).concat(
-      [I.JUMP(this.end_label), I.LABEL(this.false_branch_label)]).concat(this.false_branch.compile()).concat(
-        [I.LABEL(this.end_label)]);
+    return this.test.compile().concat([I.JUMPZ({label: this.false_branch_label})]).concat(this.true_branch.compile()).concat(
+      [I.JUMP({label: this.end_label}), I.LABEL({label: this.false_branch_label})]).concat(this.false_branch.compile()).concat(
+        [I.LABEL({label: this.end_label})]);
   }
 
 }
@@ -181,7 +181,7 @@ class FunctionCall extends ASTNode {
   compile() : Array<Instruction> {
     return this.args.reduce((previous : Array<Instruction>, current : ASTNode, index : number, args : Array<ASTNode>) => {
       return previous.concat(current.compile());
-    }, []).concat([I.PUSHSTACK(this.args.length)]).concat(this.func.compile()).concat([I.APPLY()]);
+    }, []).concat([I.PUSHSTACK({count: this.args.length})]).concat(this.func.compile()).concat([I.APPLY()]);
   }
 
 }
@@ -198,8 +198,8 @@ class AnonymousFunction extends ASTNode {
   // Mark the starting point for the function. Compile the instructions. Make a function object
   // that points at the starting label as the code start point.
   compile() : Array<Instruction> {
-    return [I.LABEL(this.starting_label)].concat(this.body.compile()).concat(
-      [I.MKFUNC(this.starting_label, this.args.length)]);
+    return [I.LABEL({label: this.starting_label})].concat(this.body.compile()).concat(
+      [I.MKFUNC({label: this.starting_label, argument_count: this.args.length})]);
   }
 
 }
@@ -240,7 +240,7 @@ class BindingPair extends ASTNode {
 
   // Compile the variable. Compile the value. Perform the assignment.
   compile() : Array<Instruction> {
-    return [I.INITVAR()].concat(this.value.compile()).concat([I.STOREA(this.variable_location)]);
+    return [I.INITVAR({var_location: this.variable_location})].concat(this.value.compile()).concat([I.STOREA({store_location: this.variable_location})]);
   }
 
 }
