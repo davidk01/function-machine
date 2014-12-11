@@ -29,14 +29,17 @@ class Num extends ASTNode {
 // Symbol. Just a wrapper around a set of characters.
 class Symbol extends ASTNode {
 
+  private stack : number;
+
+  private stack_location : number;
+
   constructor(public symb : string) { super(); }
 
   symbol() : boolean { return true; }
 
-  // Load the heap reference that the variable points to. Need to know if the variable
-  // is on the current stack or not
+  // Load a variable accounting for stack nesting and stack location on that stack level.
   compile() : Array<Instruction> {
-    throw new Error();
+    return [I.LOADVAR(this.stack, this.stack_location)];
   }
 
 }
@@ -151,10 +154,18 @@ class SExpr extends ASTNode {
 // s-expressions get refined and this is one of the control structures that we get.
 class IfExpression extends ASTNode {
 
+  private false_branch_label : string;
+
+  private end_label : string;
+
   constructor(private test : ASTNode, private true_branch : ASTNode, private false_branch : ASTNode) { super(); }
 
+  // Nothing too fancy. Just some labels and jumps.
+  // [test] jumpz(false) [true] jump(end) false [false] end
   compile() : Array<Instruction> {
-    throw new Error();
+    return this.test.compile().concat([I.JUMPZ(this.false_branch_label)]).concat(this.true_branch.compile()).concat(
+      [I.JUMP(this.end_label), I.LABEL(this.false_branch_label)]).concat(this.false_branch.compile()).concat(
+        [I.LABEL(this.end_label)]);
   }
 
 }
@@ -164,8 +175,13 @@ class FunctionCall extends ASTNode {
 
   constructor(private func : ASTNode, private args : Array<ASTNode>) { super(); }
 
+  // First evaluate the arguments. Push arguments onto the new stack. Push the function/closure
+  // reference. Call the function.
+  // arg1 arg2 ... argN pushstack(N) func-reference apply(N)
   compile() : Array<Instruction> {
-    throw new Error();
+    return this.args.reduce((previous : Array<Instruction>, current : ASTNode, index : number, args : Array<ASTNode>) => {
+      return previous.concat(current.compile());
+    }, []).concat([I.PUSHSTACK(this.args.length)]).concat(this.func.compile()).concat([I.APPLY()]);
   }
 
 }
@@ -173,10 +189,17 @@ class FunctionCall extends ASTNode {
 // Anonymous function is just a set of arguments which need to be symbols and a body.
 class AnonymousFunction extends ASTNode {
 
+  // We use the label during a second pass to resolve jump addresses.
+  private starting_label : string;
+
+  // Arguments and the body of the function.
   constructor(private args : Array<Symbol>, private body : FunctionBody) { super(); }
 
+  // Mark the starting point for the function. Compile the instructions. Make a function object
+  // that points at the starting label as the code start point.
   compile() : Array<Instruction> {
-    throw new Error();
+    return [I.LABEL(this.starting_label)].concat(this.body.compile()).concat(
+      [I.MKFUNC(this.starting_label, this.args.length)]);
   }
 
 }
@@ -187,7 +210,7 @@ class FunctionBody extends ASTNode {
   constructor(private exprs : ASTNode) { super(); }
 
   compile() : Array<Instruction> {
-    throw new Error();
+    return this.exprs.compile();
   }
 
 }
