@@ -2,6 +2,26 @@
 // Top of syntax tree hierarchy.
 var I = Instruction;
 
+// Keeps track of various bits for annotating the AST. Not sure if I should call this typechecking
+// because it is some kind of static analysis.
+class AnnotationContext {
+
+  // We generate unique labels using this number.
+  private label_number : number;
+
+  // Keep track of the parent context to mirror the scoping rules of the language.
+  constructor(private up : AnnotationContext) {
+    this.label_number = -1;
+  }
+
+  // Increment the label counter and give us another unique label.
+  get_label() : string {
+    this.label_number += 1;
+    return 'label' + this.label_number;
+  }
+
+}
+
 class ASTNode { 
 
   refine() : ASTNode { return this; }
@@ -9,7 +29,12 @@ class ASTNode {
   symbol() : boolean { return false; }
 
   compile() : Array<Instruction> {
-    throw new Error("Implement in subclasses.");
+    throw new Error('Implement in subclasses.');
+  }
+
+  // We need to traverse the syntax tree and add the necessary static information.
+  annotate(context : AnnotationContext) : void {
+    throw new Error('Implement in subclasses.');
   }
 
 }
@@ -18,6 +43,11 @@ class ASTNode {
 class Num extends ASTNode { 
 
   constructor(private num : number) { super(); }
+
+  // Nothing to do.
+  annotate(context : AnnotationContext) : void {
+    return;
+  }
 
   // Load the constant and push it to the heap.
   compile() : Array<Instruction> {
@@ -37,6 +67,11 @@ class Symbol extends ASTNode {
 
   symbol() : boolean { return true; }
 
+  // Nothing to do. Annotation has to happen by whatever higher context is using the variable.
+  annotate(context : AnnotationContext) : void {
+    return;
+  }
+
   // Load a variable accounting for stack nesting and stack location on that stack level.
   compile() : Array<Instruction> {
     return [I.LOADVAR({stack: this.stack, stack_location: this.stack_location})];
@@ -49,6 +84,10 @@ class List extends ASTNode {
 
   constructor(private list : Array<ASTNode>) { super(); }
 
+  annotate(context : AnnotationContext) : void {
+    throw new Error('Implement');
+  }
+
   compile() : Array<Instruction> {
     throw new Error();
   }
@@ -59,6 +98,10 @@ class List extends ASTNode {
 class Tuple extends ASTNode {
 
   constructor(private elements : Array<ASTNode>) { super(); }
+
+  annotate(context : AnnotationContext) : void {
+    throw new Error();
+  }
 
   compile() : Array<Instruction> {
     throw new Error();
@@ -77,6 +120,12 @@ class SExpr extends ASTNode {
     super(); 
     this.head = expressions[0];
     this.tail = expressions.slice(1);
+  }
+
+  // SExpr should not appear anywhere during the compilation process because the refinement process
+  // must get rid of all SExpr instances.
+  annotate(context : AnnotationContext) : void {
+    throw new Error('Should never be called.');
   }
 
   // Let bindings come in pairs of (variable, value).
@@ -159,6 +208,17 @@ class IfExpression extends ASTNode {
   private end_label : string;
 
   constructor(private test : ASTNode, private true_branch : ASTNode, private false_branch : ASTNode) { super(); }
+
+  // Pretty simple. Generate labels and recursively annotate the children.
+  annotate(context : AnnotationContext) : void {
+    // get the labels
+    this.end_label = context.get_label();
+    this.false_branch_label = context.get_label();
+    // recurse
+    this.test.annotate(context);
+    this.true_branch.annotate(context);
+    this.false_branch.annotate(context);
+  }
 
   // Nothing too fancy. Just some labels and jumps.
   // [test] jumpz(false) [true] jump(end) false [false] end
