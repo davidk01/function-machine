@@ -1,3 +1,5 @@
+/// <reference path="lexer.ts" />
+/// <reference path="parser.ts" />
 var examples : { [n : string] : string } = {
   'anonymous function': "(fun (x y) (+ x y))",
   'function application': "((fun (x y) (+ x y)) 1 2)",
@@ -48,6 +50,13 @@ function ast_input() {
   var refined_ast = T.refine_sexprs(s_exprs);
   ast_area().value = JSON.stringify(refined_ast);
   return refined_ast;
+}
+
+function compile_input() {
+  var refined_ast = ast_input();
+  var compiled = refined_ast.map(x => x.compile());
+  ast_area().value = JSON.stringify(compiled);
+  return compiled;
 }
 
 function instantiate_examples() {

@@ -46,12 +46,20 @@ class List extends ASTNode {
 
   constructor(private list : Array<ASTNode>) { super(); }
 
+  compile() : Array<Instruction> {
+    throw new Error();
+  }
+
 }
 
 // Basically same as List but is more like the mathematical vector than a list.
 class Tuple extends ASTNode {
 
   constructor(private elements : Array<ASTNode>) { super(); }
+
+  compile() : Array<Instruction> {
+    throw new Error();
+  }
 
 }
 
@@ -145,12 +153,20 @@ class IfExpression extends ASTNode {
 
   constructor(private test : ASTNode, private true_branch : ASTNode, private false_branch : ASTNode) { super(); }
 
+  compile() : Array<Instruction> {
+    throw new Error();
+  }
+
 }
 
 // Exactly what it sounds like. We have a symbol that is the name of the function and the list of arguments.
 class FunctionCall extends ASTNode {
 
   constructor(private func : ASTNode, private args : Array<ASTNode>) { super(); }
+
+  compile() : Array<Instruction> {
+    throw new Error();
+  }
 
 }
 
@@ -159,12 +175,20 @@ class AnonymousFunction extends ASTNode {
 
   constructor(private args : Array<Symbol>, private body : FunctionBody) { super(); }
 
+  compile() : Array<Instruction> {
+    throw new Error();
+  }
+
 }
 
 // A wrapper around a generic ASTNode.
 class FunctionBody extends ASTNode {
 
   constructor(private exprs : ASTNode) { super(); }
+
+  compile() : Array<Instruction> {
+    throw new Error();
+  }
 
 }
 
@@ -173,12 +197,25 @@ class LetExpressions extends ASTNode {
 
   constructor(private bindings : Array<BindingPair>, private body : ASTNode) { super(); }
 
+  // Compile the bindings. Compile the body. Stick them together.
+  compile() : Array<Instruction> {
+    var compiled_bindings = this.bindings.reduce((previous, current, index, bindings) => {
+      return previous.concat(current.compile());
+    }, []);
+    return compiled_bindings.concat(this.body.compile());
+  }
+
 }
 
 // The actual binding pair that appears in let expressions.
 class BindingPair extends ASTNode {
 
   constructor(private variable : Symbol, private value : ASTNode) { super(); }
+
+  // Compile the variable. Compile the value. Perform the assignment.
+  compile() : Array<Instruction> {
+    throw new Error();
+  }
 
 }
 
@@ -187,11 +224,19 @@ class MatchExpression extends ASTNode {
 
   constructor(private value : ASTNode, private patterns : Array<PatternPair>) { super(); }
 
+  compile() : Array<Instruction> {
+    throw new Error();
+  }
+
 }
 
 // Like let expressions but this time we have pattern matching pairs.
 class PatternPair extends ASTNode {
 
   constructor(private pattern : ASTNode, private expression : ASTNode) { super(); }
+
+  compile() : Array<Instruction> {
+    throw new Error();
+  }
 
 }
