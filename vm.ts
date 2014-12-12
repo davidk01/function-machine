@@ -5,10 +5,14 @@ enum Instructions {
 
 class Instruction { 
 
+  private static is_null(obj : any) {
+    return obj == null || obj == undefined;
+  }
+
   // Load a variable from the stack location specified by stack number. We figure this stuff out
   // statically during typechecking/AST annotation phase.
   static LOADVAR(args : {stack : number; stack_location : number}) {
-    if (!(args.stack && args.stack_location)) {
+    if (this.is_null(args.stack && args.stack_location)) {
       throw new Error('Must provide stack and stack location.');
     }
     return new Instruction(Instructions.LOADVAR, args);
@@ -16,7 +20,7 @@ class Instruction {
 
   // Push 'n' number of variables onto a new stack.
   static PUSHSTACK(args : {count : number}) {
-    if (!args.count) {
+    if (this.is_null(args.count)) {
       throw new Error('Must provide number of elements to push onto new stack.');
     }
     return new Instruction(Instructions.PUSHSTACK, args);
@@ -29,7 +33,7 @@ class Instruction {
 
   // Jump if zero.
   static JUMPZ(args : {label : string}) {
-    if (!args.label) {
+    if (this.is_null(args.label)) {
       throw new Error('Must provide jump label.');
     }
     return new Instruction(Instructions.JUMPZ, args);
@@ -37,7 +41,7 @@ class Instruction {
 
   // Unconditional jump.
   static JUMP(args : {label : string}) {
-    if (!args.label) {
+    if (this.is_null(args.label)) {
       throw new Error('Must provide jump label.');
     }
     return new Instruction(Instructions.JUMP, args);
@@ -45,6 +49,9 @@ class Instruction {
 
   // Load a constant.
   static LOAD(constant : {constant : number}) {
+    if (this.is_null(constant.constant)) {
+      throw new Error('Must provide constant.');
+    }
     return new Instruction(Instructions.LOAD, constant);
   }
 
@@ -55,7 +62,7 @@ class Instruction {
 
   // Initialize a variable on top of stack. Basically a null pointer.
   static INITVAR(args : {var_location : number}) {
-    if (!args.var_location) {
+    if (this.is_null(args.var_location)) {
       throw new Error('Must provide location for variable initialization.');
     }
     return new Instruction(Instructions.INITVAR, args);
@@ -63,7 +70,7 @@ class Instruction {
 
   // Store whatever is on top of the stack at the given location on the stack.
   static STOREA(args : {store_location : number}) {
-    if (!args.store_location) {
+    if (this.is_null(args.store_location)) {
       throw new Error('Must provide store location.');
     }
     return new Instruction(Instructions.STOREA, args);
@@ -71,14 +78,14 @@ class Instruction {
 
   // Label for jumps.
   static LABEL(args : {label : string}) {
-    if (!args.label) {
+    if (this.is_null(args.label)) {
       throw new Error('Must provide label.');
     }
     return new Instruction(Instructions.LABEL, args);
   }
 
   static MKFUNC(args : {label : string; argument_count : number}) {
-    if (!(args.label && args.argument_count)) {
+    if (this.is_null(args.label && args.argument_count)) {
       throw new Error('Missing parameters for MKFUNC.');
     }
     return new Instruction(Instructions.MKFUNC, args);

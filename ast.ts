@@ -369,7 +369,7 @@ class LetExpressions extends ASTNode {
   annotate(context : AnnotationContext) : void {
     var let_context = context.increment();
     this.bindings.forEach(binding => binding.annotate(let_context));
-    this.body.annotat(let_context);
+    this.body.annotate(let_context);
   }
 
 }
