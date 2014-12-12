@@ -95,6 +95,52 @@ class Instruction {
 
 }
 
+// Heap reference types.
+enum RefType {
+  BASIC, VECTOR, FUNCTION, CLOSURE
+}
+
+// An actual heap reference.
+class HeapRef {
+
+  constructor(public type : RefType, public value : any) { }
+
+  repr() : string {
+    return "{Type = " + this.type + " , Value = " + JSON.stringify(this.value) + "}";
+  }
+
+}
+
+// Just a map from integers to heap references.
+class Heap {
+
+  private heap : { [n : number] : HeapRef };
+
+  private current_index : number;
+
+  constructor() {
+    this.current_index = 0;
+    this.heap = {};
+  }
+
+  repr() : string {
+    var accumulator : string = "";
+    for (var i = 0; i < this.current_index; i++) {
+      accumulator += ("" + i + " => " + this.heap[i].repr() + "\n");
+    }
+    return accumulator;
+  }
+
+  basic_ref(val : number) : HeapRef {
+    var new_ref : HeapRef = new HeapRef(RefType.BASIC, val);
+    this.heap[this.current_index] = new_ref;
+    this.current_index += 1;
+    return new_ref;
+  }
+
+}
+
+// Stack, wraps an array and exposes some basic operations.
 class Stack {
 
   // Holds the actual stack contents for this level.
@@ -104,13 +150,37 @@ class Stack {
     this.stack = [];
   }
 
+  repr() : string {
+    if (this.up) {
+      return this.up.repr() + " | " + this.repr();
+    }
+    return this.stack.map(x => {
+      if (x.repr) {
+        return x.repr();
+      } else {
+        console.log('repr not found: ', x);
+        return x.toString();
+      }
+    }).join(', ');
+  }
+
   // Chain another stack on this one and also increment the level.
   increment() : Stack {
     return new Stack(this, this.level + 1);
   }
 
+  // Just push a constant on the stack. Constants for now are just ints.
+  push(val : any) : void {
+    this.stack.push(val);
+  }
+
+  pop() : any {
+    return this.stack.pop();
+  }
+
 }
 
+// What runs our code.
 class VM {
 
   // Current instruction.
@@ -122,16 +192,22 @@ class VM {
   // Current runtime stack.
   private stack : Stack;
 
-  // Take the instructions and initialize the program counter and the initial stack.
+  // Runtime heap.
+  private heap : Heap;
+
+  // Take the instructions and initialize the program counter, the initial stack, heap, etc.
   constructor(private instructions : Array<Instruction>) {
     this.pc = 0;
     this.stack = new Stack(null, 0);
+    this.heap = new Heap();
   }
 
   // A string representation of the current VM state.
   repr() : string {
     return  "pc: " + this.pc.toString() + "\n" +
-      "ir: " + this.ir.toString() + "\n";
+      "ir: " + JSON.stringify(this.ir) + "\n" +
+      "stack: " + this.stack.repr() + "\n" +
+      "heap: " + this.heap.repr();
   }
 
   // run until there are no more instructions or we hit halt and
@@ -156,18 +232,54 @@ class VM {
 
   // Execute the instruction.
   execute() : void {
+    var args : any = this.ir.args;
     switch(this.ir.instruction) {
-      case Instructions.LOAD:
-      case Instructions.MKBASIC:
-      case Instructions.INITVAR:
-      case Instructions.STOREA:
-      case Instructions.LABEL:
-      case Instructions.MKFUNC:
-      case Instructions.JUMPZ:
-      case Instructions.JUMP:
-      case Instructions.PUSHSTACK:
-      case Instructions.APPLY:
-      case Instructions.LOADVAR:
+      case Instructions.LOAD: // Just loads a constant
+        console.log('LOAD');
+        this.stack.push(args.constant);
+        break;
+      case Instructions.MKBASIC: // Make a basic variable reference, ints for the time being
+        console.log('MKBASIC');
+        var basic : number = (<number>this.stack.pop());
+        var basic_ref : HeapRef = this.heap.basic_ref(basic);
+        this.stack.push(basic_ref);
+        break;
+      case Instructions.INITVAR: // Initialize a variable on the stack at a specific location
+        console.log('INITVAR');
+        throw new Error();
+        break;
+      case Instructions.STOREA: // Store the top of the stack at the specified address
+        console.log('STOREA');
+        throw new Error();
+        break;
+      case Instructions.LABEL: // noop, just used for resolving jump addresses
+        console.log('LABEL');
+        throw new Error();
+        break;
+      case Instructions.MKFUNC: // Make a function object and push the reference onto the stack
+        console.log('MKFUNC');
+        throw new Error();
+        break;
+      case Instructions.JUMPZ: // Jump if top of stack is zero
+        console.log('JUMPZ');
+        throw new Error();
+        break;
+      case Instructions.JUMP: // Unconditional jump
+        console.log('JUMP');
+        throw new Error();
+        break;
+      case Instructions.PUSHSTACK: // Push specified number of values onto new stack
+        console.log('PUSHSTACK');
+        throw new Error();
+        break;
+      case Instructions.APPLY: // Apply the function reference on top of stack
+        console.log('APPLY');
+        throw new Error();
+        break;
+      case Instructions.LOADVAR: // Load a variable from a specific stack and location
+        console.log('LOADVAR');
+        throw new Error();
+        break;
       default:
         throw new Error('Unrecognized instruction.');
     }
