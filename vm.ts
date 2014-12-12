@@ -150,10 +150,7 @@ class Stack {
     this.stack = [];
   }
 
-  repr() : string {
-    if (this.up) {
-      return this.up.repr() + " | " + this.repr();
-    }
+  private current_repr() : string {
     return this.stack.map(x => {
       if (x.repr) {
         return x.repr();
@@ -164,9 +161,20 @@ class Stack {
     }).join(', ');
   }
 
+  repr() : string {
+    if (this.up) {
+      return this.up.repr() + " | " + this.current_repr();
+    }
+    return this.current_repr();
+  }
+
   // Chain another stack on this one and also increment the level.
   increment() : Stack {
     return new Stack(this, this.level + 1);
+  }
+
+  unshift(val : any) : void {
+    this.stack.unshift(val);
   }
 
   // Just push a constant on the stack. Constants for now are just ints.
@@ -254,7 +262,6 @@ class VM {
         break;
       case Instructions.LABEL: // noop, just used for resolving jump addresses
         console.log('LABEL');
-        throw new Error();
         break;
       case Instructions.MKFUNC: // Make a function object and push the reference onto the stack
         console.log('MKFUNC');
@@ -268,9 +275,12 @@ class VM {
         console.log('JUMP');
         throw new Error();
         break;
-      case Instructions.PUSHSTACK: // Push specified number of values onto new stack
+      case Instructions.PUSHSTACK: // Push specified number of values onto new stack and preserve the order
         console.log('PUSHSTACK');
-        throw new Error();
+        var new_stack : Stack = this.stack.increment();
+        new_stack.unshift(this.stack.pop());
+        new_stack.unshift(this.stack.pop());
+        this.stack = new_stack;
         break;
       case Instructions.APPLY: // Apply the function reference on top of stack
         console.log('APPLY');
