@@ -67,8 +67,13 @@ function ast_input() {
 // Compile the intput to VM instructions.
 function compile_input() {
   var refined_ast = ast_input();
-  var compiled = refined_ast.map(x => x.compile()).reduce(
-    (previous, current, index) => previous.concat(current));
+  // Need to annotate before compiling.
+  var context = new AnnotationContext(null);
+  refined_ast.forEach((x, index) => x.annotate(context));
+  var compiled = refined_ast.map(x => {
+    console.log('Compiling: ' + JSON.stringify(x));
+    return x.compile();
+  }).reduce((previous, current, index) => previous.concat(current));
   ast_area().value = JSON.stringify(compiled);
   return compiled;
 }
