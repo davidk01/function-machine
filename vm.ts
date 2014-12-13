@@ -221,6 +221,7 @@ class VM {
   // run until there are no more instructions or we hit halt and
   // throw an exception.
   run() : void {
+    this.step();
     while (this.ir) {
       this.step();
     }
