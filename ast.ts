@@ -26,6 +26,14 @@ class AnnotationContext {
     this.stack_number = (this.up && this.up.get_stack_number()) || 0;
   }
 
+  has_variable(variable : Symbol) : boolean {
+    return this.variables[variable.symb] || (this.up && this.up.has_variable(variable));
+  }
+
+  get_variable(variable : Symbol) : Symbol {
+    return this.variables[variable.symb] || (this.up && this.up.get_variable(variable));
+  }
+
   get_label_number() : number {
     return this.label_number;
   }
@@ -109,10 +117,25 @@ class Symbol extends ASTNode {
 
   // Annotate with stack number and location. The order in which we call things is important because
   // adding a variable increments the latest stack location. Might be a better way to do this.
+  // We also need to be careful about annotating variables that have already been declared. If the variable
+  // has already been declared then we annotate it with the same data as the previous declaration.
   annotate(context : AnnotationContext) : void {
+    // This is kinda ugly. TODO: Figure out a better way.
+    if (context.has_variable(this)) {
+      // Not sure if this is valid. TODO: Fix this.
+      console.log('Variable already declared. Assuming use site.');
+      var symbol : Symbol = context.get_variable(this);
+      this.stack = symbol.get_stack_number();
+      this.stack_location = symbol.get_stack_location();
+      return;
+    }
     this.stack = context.get_stack_number();
     this.stack_location = context.get_latest_location();
     context.add_variable(this.symb, this);
+  }
+
+  get_stack_number() : number {
+    return this.stack;
   }
 
   get_stack_location() : number {

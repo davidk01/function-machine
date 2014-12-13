@@ -168,6 +168,14 @@ class Stack {
     return this.current_repr();
   }
 
+  get_variable(args : {stack : number; stack_location : number}) : any {
+    if (args.stack == this.level) {
+      return this.stack[args.stack_location];
+    } else {
+      return this.up.get_variable(args);
+    }
+  }
+
   // Chain another stack on this one and also increment the level.
   increment() : Stack {
     return new Stack(this, this.level + 1);
@@ -289,7 +297,7 @@ class VM {
         break;
       case Instructions.LOADVAR: // Load a variable from a specific stack and location
         console.log('LOADVAR');
-        throw new Error();
+        this.stack.push(this.stack.get_variable(args));
         break;
       default:
         throw new Error('Unrecognized instruction.');
