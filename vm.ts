@@ -211,6 +211,9 @@ class VM {
   // Runtime heap.
   private heap : Heap;
 
+  // Return stack.
+  private returns : Array<number>;
+
   // Take the instructions and initialize the program counter, the initial stack, heap, etc.
   constructor(private instructions : Array<Instruction>) {
     this.pc = 0;
@@ -293,7 +296,12 @@ class VM {
         break;
       case Instructions.APPLY: // Apply the function reference on top of stack
         console.log('APPLY');
-        throw new Error();
+        var func_ref : HeapRef = this.stack.pop();
+        if (!(func_ref.type == RefType.FUNCTION)) {
+          throw new Error('Can not apply non-function reference.');
+        }
+        this.returns.push(this.pc);
+        this.pc = func_ref.value;
         break;
       case Instructions.LOADVAR: // Load a variable from a specific stack and location
         console.log('LOADVAR');

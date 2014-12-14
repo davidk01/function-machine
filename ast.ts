@@ -342,8 +342,9 @@ class AnonymousFunction extends ASTNode {
   // Mark the starting point for the function. Compile the instructions. Make a function object
   // that points at the starting label as the code start point.
   compile() : Array<Instruction> {
-    return [I.LABEL({label: this.starting_label})].concat(this.body.compile()).concat(
-      [I.MKFUNC({label: this.starting_label, argument_count: this.args.length})]);
+    console.log('Compiling function. Starting label: ', this.starting_label);
+    return [I.LABEL({label: this.starting_label}),
+      I.MKFUNC({label: this.starting_label, argument_count: this.args.length})].concat(this.body.compile());
   }
 
   // Generate the label and then increment the context and annotate the arguments and body in that context.
