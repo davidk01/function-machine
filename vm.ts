@@ -103,7 +103,7 @@ class Instruction {
 
 // Heap reference types.
 enum RefType {
-  BASIC, VECTOR, FUNCTION, CLOSURE
+  BASIC, VECTOR, BUILTIN, FUNCTION, CLOSURE
 }
 
 // An actual heap reference.
@@ -160,9 +160,10 @@ interface StackLocation {
   stack_location : number;
 }
 
+// Populate the builtin map so that LOADVAR instructions can load them.
 function generate_builtins() {
-  var builtins : { [index : number] : any } = {};
-  builtins[Builtins.PLUS] = (x : number, y : number) : number => x + y;
+  var builtins : { [index : number] : HeapRef } = {};
+  builtins[Builtins.PLUS] = new HeapRef(RefType.BUILTIN, null);
   return builtins;
 }
 
@@ -197,9 +198,7 @@ class Stack {
   }
 
   get_builtin(builtin_location : number) {
-    if (builtin_location >= 0) {
-      throw new Error('Builtins are all located at negative stack addresses at stack number -1.');
-    }
+    return Stack.builtins[builtin_location];
   }
 
   get_variable(args : StackLocation) : any {
@@ -365,6 +364,9 @@ class VM {
       case Instructions.APPLY: // Apply the function reference on top of stack
         console.log('APPLY');
         var func_ref : HeapRef = this.stack.pop();
+        if (func_ref.type == RefType.BUILTIN) {
+          throw new Error();
+        }
         if (!(func_ref.type == RefType.FUNCTION)) {
           throw new Error('Can not apply non-function reference.');
         }

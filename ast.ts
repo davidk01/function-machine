@@ -13,24 +13,25 @@ class AnnotationContext {
   private label_number : number;
 
   // Keep track of variables in the current scope.
-  private variables : { [s : string] : any };
+  private variables : { [s : string] : Symbol };
 
   // Keeps track of stack increments during function calls.
   private stack_number : number;
 
   // Keep track of the parent context to mirror the scoping rules of the language.
   constructor(private up : AnnotationContext) {
+    if (!this.up) {
+      this.variables = ContextBuiltins;
+    } else {
+      this.variables = {};
+    }
     this.label_number = (this.up && this.up.get_label_number()) || -1;
     this.latest_location = (this.up && this.up.get_latest_location()) || 0;
-    // Bult-in functions and variables have a special stack number and stack location: (-1, ?).
-    this.variables = {
-      '+': new Symbol('+', -1, Builtins.PLUS)
-    };
     this.stack_number = (this.up && this.up.get_stack_number()) || 0;
   }
 
   has_variable(variable : Symbol) : boolean {
-    return this.variables[variable.symb] || (this.up && this.up.has_variable(variable));
+    return !!(this.variables[variable.symb] || (this.up && this.up.has_variable(variable)));
   }
 
   get_variable(variable : Symbol) : Symbol {
@@ -146,6 +147,10 @@ class Symbol extends ASTNode {
     return [I.LOADVAR({stack: this.stack, stack_location: this.stack_location})];
   }
 
+}
+
+var ContextBuiltins : { [symb : string] : Symbol } = {
+    '+': new Symbol('+', -1, Builtins.PLUS)
 }
 
 // List the data not the s-expression.
