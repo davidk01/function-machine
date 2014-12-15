@@ -3,7 +3,7 @@
 // Basic instructions
 enum Instructions {
   LOAD, MKBASIC, INITVAR, STOREA, LABEL, MKFUNC,
-  JUMPZ, JUMP, PUSHSTACK, APPLY, LOADVAR
+  JUMPZ, JUMP, PUSHSTACK, APPLY, LOADVAR, RETURN
 }
 
 // Builtin functions
@@ -24,6 +24,11 @@ class Instruction {
       throw new Error('Must provide stack and stack location.');
     }
     return new Instruction(Instructions.LOADVAR, args);
+  }
+
+  // Return instruction.
+  static RETURN() {
+    return new Instruction(Instructions.RETURN, null);
   }
 
   // Push 'n' number of variables onto a new stack.
@@ -119,6 +124,17 @@ class HeapRef {
 
 }
 
+// Heap references point to heap values.
+class HeapVal {
+  
+  constructor(public type : RefType, public value : any) { }
+
+  repr() : string {
+    return "type = " + this.type + ", value = " + this.value;
+  }
+
+}
+
 // Just a map from integers to heap references.
 class Heap {
 
@@ -139,18 +155,23 @@ class Heap {
     return accumulator;
   }
 
+  // Dereference a heap reference.
+  get_ref(ref : HeapRef) : any {
+    return this.heap[ref.value];
+  }
+
   // Generate a function pointer.
   func_ref(pc : number) : HeapRef {
-    var new_ref : HeapRef = new HeapRef(RefType.FUNCTION, pc);
-    this.heap[this.current_index] = new_ref;
+    var new_ref : HeapRef = new HeapRef(RefType.FUNCTION, this.current_index);
+    this.heap[this.current_index] = new HeapVal(RefType.FUNCTION, pc);
     this.current_index += 1;
     return new_ref;
   }
 
   // Generate a basic value pointer.
   basic_ref(val : number) : HeapRef {
-    var new_ref : HeapRef = new HeapRef(RefType.BASIC, val);
-    this.heap[this.current_index] = new_ref;
+    var new_ref : HeapRef = new HeapRef(RefType.BASIC, this.current_index);
+    this.heap[this.current_index] = new HeapVal(RefType.BASIC, val);
     this.current_index += 1;
     return new_ref;
   }
@@ -160,7 +181,23 @@ class Heap {
 // Populate the builtin map so that LOADVAR instructions can load them.
 function generate_builtins() {
   var builtins : HeapMap = {};
-  builtins[Builtins.PLUS] = new HeapRef(RefType.BUILTIN, null);
+  // PLUS
+  var plus = function(vm : VM) : void {
+    var arg1_ref : HeapRef = vm.stack.pop();
+    if (!(arg1_ref.type == RefType.BASIC)) {
+      throw new Error('First argument type must be basic.');
+    }
+    var arg2_ref : HeapRef = vm.stack.pop();
+    if (!(arg1_ref.type == RefType.BASIC)) {
+      throw new Error('Second argument type must be basic.');
+    }
+    var arg1 : HeapVal = vm.deref(arg1_ref);
+    var arg2 : HeapVal = vm.deref(arg2_ref);
+    var sum_ref : HeapRef = vm.heap.basic_ref(arg1.value + arg2.value);
+    vm.stack.push(sum_ref);
+    return vm.ret();
+  }
+  builtins[Builtins.PLUS] = new HeapRef(RefType.BUILTIN, plus);
   return builtins;
 }
 
@@ -172,7 +209,7 @@ class Stack {
   // Holds the actual stack contents for this level.
   stack : Array<any>;
 
-  constructor(private up : Stack, private level : number) { 
+  constructor(public up : Stack, private level : number) { 
     this.stack = [];
   }
 
@@ -241,10 +278,10 @@ class VM {
   private pc : number;
 
   // Current runtime stack.
-  private stack : Stack;
+  stack : Stack;
 
   // Runtime heap.
-  private heap : Heap;
+  heap : Heap;
 
   // Keeps track of label addresses as we resolve them during runtime.
   private label_map : LabelMap;
@@ -264,6 +301,19 @@ class VM {
   // Null check.
   is_not_null(obj : any) : boolean {
     return !(obj == null || obj == undefined);
+  }
+
+  // Push top of stack onto previous stack, reset stack, and pc.
+  ret() : void {
+    var return_value : HeapRef = this.stack.pop();
+    this.stack = this.stack.up;
+    this.stack.push(return_value);
+    this.pc = this.returns.pop();
+  }
+
+  // Dereference whatever is passed in.
+  deref(ref : HeapRef) : HeapVal {
+    return this.heap.get_ref(ref);
   }
 
   // Figure out the address of the label at runtime and then cache the result.
@@ -317,7 +367,7 @@ class VM {
     var args : any = this.ir.args;
     switch(this.ir.instruction) {
       case Instructions.LOAD: // Just loads a constant
-        console.log('LOAD');
+        console.log('LOAD: ', args.constant);
         this.stack.push(args.constant);
         break;
       case Instructions.MKBASIC: // Make a basic variable reference, ints for the time being
@@ -352,26 +402,32 @@ class VM {
         throw new Error();
         break;
       case Instructions.PUSHSTACK: // Push specified number of values onto new stack and preserve the order
-        console.log('PUSHSTACK');
+        console.log('PUSHSTACK: ', args.count);
         var new_stack : Stack = this.stack.increment();
-        new_stack.unshift(this.stack.pop());
-        new_stack.unshift(this.stack.pop());
+        for (var i = 0; i < args.count; i++) {
+          new_stack.unshift(this.stack.pop());
+        }
         this.stack = new_stack;
+        break;
+      case Instructions.RETURN:
+        console.log('RETURN: ', this.returns[this.returns.length - 1]);
+        vm.ret();
         break;
       case Instructions.APPLY: // Apply the function reference on top of stack
         console.log('APPLY');
+        this.returns.push(this.pc);
         var func_ref : HeapRef = this.stack.pop();
         if (func_ref.type == RefType.BUILTIN) {
-          throw new Error();
+          func_ref.value(this);
+          return;
+        } else if (func_ref.type == RefType.FUNCTION) {
+          var destination : number = vm.deref(func_ref).value;
+          this.pc = destination;
+          return;
         }
-        if (!(func_ref.type == RefType.FUNCTION)) {
-          throw new Error('Can not apply non-function reference.');
-        }
-        this.returns.push(this.pc);
-        this.pc = func_ref.value;
-        break;
+        throw new Error('Can not apply non-function reference.');
       case Instructions.LOADVAR: // Load a variable from a specific stack and location
-        console.log('LOADVAR');
+        console.log('LOADVAR: ', args.stack, args.stack_location);
         this.stack.push(this.stack.get_variable(args));
         break;
       default:

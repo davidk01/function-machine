@@ -1,3 +1,4 @@
+/// <reference path="ast.ts" />
 // All the interfaces.
 interface LabelMap {
   [label : string] : number;
@@ -9,7 +10,7 @@ interface StackLocation {
 }
 
 interface HeapMap {
-  [n : number] : HeapRef;
+  [n : number] : HeapVal;
 }
 
 interface MkfuncArgument {
