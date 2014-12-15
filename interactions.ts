@@ -3,7 +3,7 @@
 /// <reference path="vm.ts" />
 declare var vm : VM;
 
-var examples : { [n : string] : string } = {
+var examples : ExampleMap = {
   'anonymous function': "(fun (x y) (+ x y))",
   'function application': "((fun (x y) (+ x y)) 1 2)",
   'factorial': "(let (factorial (fun (x) (if (lt 0 x) (* x (factorial (- x 1))) 1))) (factorial 3))",

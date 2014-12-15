@@ -1,3 +1,5 @@
+/// <reference path="interfaces.d.ts" />
+
 // Basic instructions
 enum Instructions {
   LOAD, MKBASIC, INITVAR, STOREA, LABEL, MKFUNC,
@@ -17,7 +19,7 @@ class Instruction {
 
   // Load a variable from the stack location specified by stack number. We figure this stuff out
   // statically during typechecking/AST annotation phase.
-  static LOADVAR(args : {stack : number; stack_location : number}) {
+  static LOADVAR(args : StackLocation) {
     if (this.is_null(args.stack && args.stack_location)) {
       throw new Error('Must provide stack and stack location.');
     }
@@ -25,7 +27,7 @@ class Instruction {
   }
 
   // Push 'n' number of variables onto a new stack.
-  static PUSHSTACK(args : {count : number}) {
+  static PUSHSTACK(args : PushStackArgument) {
     if (this.is_null(args.count)) {
       throw new Error('Must provide number of elements to push onto new stack.');
     }
@@ -38,7 +40,7 @@ class Instruction {
   }
 
   // Jump if zero.
-  static JUMPZ(args : {label : string}) {
+  static JUMPZ(args : JumpArgument) {
     if (this.is_null(args.label)) {
       throw new Error('Must provide jump label.');
     }
@@ -46,7 +48,7 @@ class Instruction {
   }
 
   // Unconditional jump.
-  static JUMP(args : {label : string}) {
+  static JUMP(args : JumpArgument) {
     if (this.is_null(args.label)) {
       throw new Error('Must provide jump label.');
     }
@@ -54,7 +56,7 @@ class Instruction {
   }
 
   // Load a constant.
-  static LOAD(constant : {constant : number}) {
+  static LOAD(constant : LoadArgument) {
     if (this.is_null(constant.constant)) {
       throw new Error('Must provide constant.');
     }
@@ -67,7 +69,7 @@ class Instruction {
   }
 
   // Initialize a variable on top of stack. Basically a null pointer.
-  static INITVAR(args : {var_location : number}) {
+  static INITVAR(args : InitVarArgument) {
     if (this.is_null(args.var_location)) {
       throw new Error('Must provide location for variable initialization.');
     }
@@ -75,7 +77,7 @@ class Instruction {
   }
 
   // Store whatever is on top of the stack at the given location on the stack.
-  static STOREA(args : {store_location : number}) {
+  static STOREA(args : StoreArgument) {
     if (this.is_null(args.store_location)) {
       throw new Error('Must provide store location.');
     }
@@ -83,21 +85,21 @@ class Instruction {
   }
 
   // Label for jumps.
-  static LABEL(args : {label : string}) {
+  static LABEL(args : JumpArgument) {
     if (this.is_null(args.label)) {
       throw new Error('Must provide label.');
     }
     return new Instruction(Instructions.LABEL, args);
   }
 
-  static MKFUNC(args : {label : string; argument_count : number}) {
+  static MKFUNC(args : MkfuncArgument) {
     if (this.is_null(args.label && args.argument_count)) {
       throw new Error('Missing parameters for MKFUNC.');
     }
     return new Instruction(Instructions.MKFUNC, args);
   }
 
-  constructor(public instruction : Instructions, public args : {}) { }
+  constructor(public instruction : Instructions, public args : any) { }
 
 }
 
@@ -120,7 +122,7 @@ class HeapRef {
 // Just a map from integers to heap references.
 class Heap {
 
-  private heap : { [n : number] : HeapRef };
+  private heap : HeapMap;
 
   private current_index : number;
 
@@ -155,14 +157,9 @@ class Heap {
 
 }
 
-interface StackLocation {
-  stack : number;
-  stack_location : number;
-}
-
 // Populate the builtin map so that LOADVAR instructions can load them.
 function generate_builtins() {
-  var builtins : { [index : number] : HeapRef } = {};
+  var builtins : HeapMap = {};
   builtins[Builtins.PLUS] = new HeapRef(RefType.BUILTIN, null);
   return builtins;
 }
@@ -170,7 +167,7 @@ function generate_builtins() {
 // Stack, wraps an array and exposes some basic operations.
 class Stack {
 
-  static builtins = generate_builtins();
+  static builtins : HeapMap = generate_builtins();
 
   // Holds the actual stack contents for this level.
   stack : Array<any>;
@@ -250,7 +247,7 @@ class VM {
   private heap : Heap;
 
   // Keeps track of label addresses as we resolve them during runtime.
-  private label_map : { [label : string] : number };
+  private label_map : LabelMap;
 
   // Return stack.
   private returns : Array<number>;

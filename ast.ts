@@ -13,7 +13,7 @@ class AnnotationContext {
   private label_number : number;
 
   // Keep track of variables in the current scope.
-  private variables : { [s : string] : Symbol };
+  private variables : VariableMap;
 
   // Keeps track of stack increments during function calls.
   private stack_number : number;
@@ -149,7 +149,7 @@ class Symbol extends ASTNode {
 
 }
 
-var ContextBuiltins : { [symb : string] : Symbol } = {
+var ContextBuiltins : BuiltinMap = {
     '+': new Symbol('+', -1, Builtins.PLUS)
 }
 
