@@ -11,7 +11,7 @@ enum Builtins {
 
 class Instruction { 
 
-  private static is_null(obj : any) {
+  private static is_null(obj : any) : boolean {
     return obj == null || obj == undefined;
   }
 
