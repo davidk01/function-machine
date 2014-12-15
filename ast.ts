@@ -22,7 +22,10 @@ class AnnotationContext {
   constructor(private up : AnnotationContext) {
     this.label_number = (this.up && this.up.get_label_number()) || -1;
     this.latest_location = (this.up && this.up.get_latest_location()) || 0;
-    this.variables = {};
+    // Bult-in functions and variables have a special stack number and stack location: (-1, ?).
+    this.variables = {
+      '+': new Symbol('+', -1, Builtins.PLUS)
+    };
     this.stack_number = (this.up && this.up.get_stack_number()) || 0;
   }
 
@@ -107,11 +110,7 @@ class Num extends ASTNode {
 // Symbol. Just a wrapper around a set of characters.
 class Symbol extends ASTNode {
 
-  private stack : number;
-
-  private stack_location : number;
-
-  constructor(public symb : string) { super(); }
+  constructor(public symb : string, public stack : number, public stack_location : number) { super(); }
 
   symbol() : boolean { return true; }
 
@@ -307,17 +306,21 @@ class IfExpression extends ASTNode {
 // Exactly what it sounds like. We have a symbol that is the name of the function and the list of arguments.
 class FunctionCall extends ASTNode {
 
+  // There are only three possibilities for what can be the head of the function call:
+  // anonymous function, built-in, or function reference.
   constructor(private func : ASTNode, private args : Array<ASTNode>) { super(); }
 
   // First evaluate the arguments. Push arguments onto the new stack. Push the function/closure
   // reference. Call the function.
   // arg1 arg2 ... argN pushstack(N) func-reference apply(N)
   compile() : Array<Instruction> {
+    console.log('Compiling function call: ', this.func);
     var compiled_args = this.args.reduce((previous : Array<Instruction>, current : ASTNode, index : number, args : Array<ASTNode>) => {
       return previous.concat(current.compile());
     }, []);
     var compiled_func = this.func.compile();
-    return compiled_args.concat([I.PUSHSTACK({count: this.args.length})]).concat(compiled_func).concat([I.APPLY()]);
+    // We push an extra argument because the last argument is going to be the reference to the function we want to apply.
+    return compiled_args.concat(compiled_func).concat([I.PUSHSTACK({count: this.args.length + 1}), I.APPLY()]);
   }
 
   // Doesn't look like I need to do anything other than recursively call annotate.
@@ -336,6 +339,9 @@ class AnonymousFunction extends ASTNode {
   // We use the label during a second pass to resolve jump addresses.
   private starting_label : string;
 
+  // Marks the end of the function body.
+  private ending_label : string;
+
   // Arguments and the body of the function.
   constructor(private args : Array<Symbol>, private body : FunctionBody) { super(); }
 
@@ -344,13 +350,15 @@ class AnonymousFunction extends ASTNode {
   compile() : Array<Instruction> {
     console.log('Compiling function. Starting label: ', this.starting_label);
     return [I.LABEL({label: this.starting_label}),
-      I.MKFUNC({label: this.starting_label, argument_count: this.args.length})].concat(this.body.compile());
+      I.MKFUNC({label: this.ending_label, argument_count: this.args.length})].concat(
+        this.body.compile()).concat(I.LABEL({label: this.ending_label}));
   }
 
   // Generate the label and then increment the context and annotate the arguments and body in that context.
   // Incrementing the context because we want to mimic the scoping rules of the language.
   annotate(context : AnnotationContext) : void {
     this.starting_label = context.get_label();
+    this.ending_label = this.starting_label + 'end';
     var body_context = context.increment();
     this.args.forEach(x => x.annotate(body_context));
     this.body.annotate(body_context);

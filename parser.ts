@@ -12,7 +12,7 @@ class G {
 
   // Symbol token.
   static symb : Parser = Parser.m(x => x.type === TokenType.SYMBOL).transformer(
-    (x : Token) : Symbol => new Symbol(x.characters));
+    (x : Token) : Symbol => new Symbol(x.characters, null, null));
 
   // Left paren.
   static lparen : Parser = Parser.m(x => x.type === TokenType.LPAREN);

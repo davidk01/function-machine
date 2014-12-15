@@ -1,6 +1,12 @@
+// Basic instructions
 enum Instructions {
   LOAD, MKBASIC, INITVAR, STOREA, LABEL, MKFUNC,
   JUMPZ, JUMP, PUSHSTACK, APPLY, LOADVAR
+}
+
+// Builtin functions
+enum Builtins {
+  PLUS
 }
 
 class Instruction { 
@@ -131,6 +137,15 @@ class Heap {
     return accumulator;
   }
 
+  // Generate a function pointer.
+  func_ref(pc : number) : HeapRef {
+    var new_ref : HeapRef = new HeapRef(RefType.FUNCTION, pc);
+    this.heap[this.current_index] = new_ref;
+    this.current_index += 1;
+    return new_ref;
+  }
+
+  // Generate a basic value pointer.
   basic_ref(val : number) : HeapRef {
     var new_ref : HeapRef = new HeapRef(RefType.BASIC, val);
     this.heap[this.current_index] = new_ref;
@@ -140,8 +155,21 @@ class Heap {
 
 }
 
+interface StackLocation {
+  stack : number;
+  stack_location : number;
+}
+
+function generate_builtins() {
+  var builtins : { [index : number] : any } = {};
+  builtins[Builtins.PLUS] = (x : number, y : number) : number => x + y;
+  return builtins;
+}
+
 // Stack, wraps an array and exposes some basic operations.
 class Stack {
+
+  static builtins = generate_builtins();
 
   // Holds the actual stack contents for this level.
   stack : Array<any>;
@@ -168,9 +196,20 @@ class Stack {
     return this.current_repr();
   }
 
-  get_variable(args : {stack : number; stack_location : number}) : any {
+  get_builtin(builtin_location : number) {
+    if (builtin_location >= 0) {
+      throw new Error('Builtins are all located at negative stack addresses at stack number -1.');
+    }
+  }
+
+  get_variable(args : StackLocation) : any {
+    if (args.stack == -1) { // Working with builtins
+      return this.get_builtin(args.stack_location);
+    }
     if (args.stack == this.level) {
       return this.stack[args.stack_location];
+    } else if (args.stack > this.level) {
+      throw new Error('Can not load from a future stack level, yet.');
     } else {
       return this.up.get_variable(args);
     }
@@ -211,6 +250,9 @@ class VM {
   // Runtime heap.
   private heap : Heap;
 
+  // Keeps track of label addresses as we resolve them during runtime.
+  private label_map : { [label : string] : number };
+
   // Return stack.
   private returns : Array<number>;
 
@@ -219,6 +261,30 @@ class VM {
     this.pc = 0;
     this.stack = new Stack(null, 0);
     this.heap = new Heap();
+    this.label_map = {};
+    this.returns = [];
+  }
+
+  // Null check.
+  is_not_null(obj : any) : boolean {
+    return !(obj == null || obj == undefined);
+  }
+
+  // Figure out the address of the label at runtime and then cache the result.
+  resolve_label(label : string) : number {
+    if (this.label_map[label]) {
+      return this.label_map[label];
+    }
+    for (var i = 0; i < this.instructions.length; i++) {
+      var instruction = this.instructions[i];
+      var args : any = instruction.args;
+      if (instruction.instruction == Instructions.LABEL &&
+        this.is_not_null(args) && args.label && args.label == label) {
+        this.label_map[label] = i;
+        return i;
+      }
+    }
+    throw new Error('Could not resolve label.');
   }
 
   // A string representation of the current VM state.
@@ -277,7 +343,9 @@ class VM {
         break;
       case Instructions.MKFUNC: // Make a function object and push the reference onto the stack
         console.log('MKFUNC');
-        throw new Error();
+        var func_ref : HeapRef = this.heap.func_ref(this.pc);
+        this.stack.push(func_ref);
+        this.pc = this.resolve_label(args.label);
         break;
       case Instructions.JUMPZ: // Jump if top of stack is zero
         console.log('JUMPZ');
