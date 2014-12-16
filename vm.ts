@@ -483,7 +483,12 @@ class VM {
           this.pc = destination;
           return;
         } else if (func_ref.type == RefType.CLOSURE) {
-          throw new Error();
+          var closure : ClosureRef = this.deref(func_ref).value;
+          var pc : number = closure.pc;
+          var closure_args : Array<HeapRef> = this.deref(closure.arg_vector).value;
+          this.stack.stack = closure_args.concat(this.stack.stack);
+          this.pc = pc;
+          return;
         }
         throw new Error('Can not apply non-function reference.');
       case 'argcheck':

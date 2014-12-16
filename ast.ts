@@ -77,6 +77,9 @@ class AnnotationContext {
 
 class ASTNode { 
 
+  // This is where we are going to keep the results of the annotation pass.
+  metadata : any;
+
   refine() : ASTNode { return this; }
 
   symbol() : boolean { return false; }
@@ -111,7 +114,7 @@ class Num extends ASTNode {
 // Symbol. Just a wrapper around a set of characters.
 class Symbol extends ASTNode {
 
-  constructor(public symb : string, public stack : number, public stack_location : number) { super(); }
+  constructor(public symb : string) { super(); }
 
   symbol() : boolean { return true; }
 
@@ -120,37 +123,36 @@ class Symbol extends ASTNode {
   // We also need to be careful about annotating variables that have already been declared. If the variable
   // has already been declared then we annotate it with the same data as the previous declaration.
   annotate(context : AnnotationContext) : void {
-    // This is kinda ugly. TODO: Figure out a better way.
     if (context.has_variable(this)) {
       // Not sure if this is valid. TODO: Fix this.
       console.log('Variable already declared. Assuming use site.');
       var symbol : Symbol = context.get_variable(this);
-      this.stack = symbol.get_stack_number();
-      this.stack_location = symbol.get_stack_location();
+      this.metadata = symbol.metadata;
       return;
     }
-    this.stack = context.get_stack_number();
-    this.stack_location = context.get_latest_location();
+    this.metadata.symbol_annotation(context);
+    //this.stack = context.get_stack_number();
+    //this.stack_location = context.get_latest_location();
     context.add_variable(this.symb, this);
   }
 
   get_stack_number() : number {
-    return this.stack;
+    return this.metadata.stack_number;
   }
 
   get_stack_location() : number {
-    return this.stack_location;
+    return this.metadata.stack_location;
   }
 
   // Load a variable accounting for stack nesting and stack location on that stack level.
   compile() : Array<Instruction> {
-    return [I.LOADVAR({stack: this.stack, stack_location: this.stack_location})];
+    return [I.LOADVAR(this.metadata.get_stack_data())];
   }
 
 }
 
 var ContextBuiltins : BuiltinMap = {
-    '+': new Symbol('+', -1, Builtins.PLUS)
+    '+': new Symbol('+')
 }
 
 // List the data not the s-expression.
@@ -281,17 +283,14 @@ class SExpr extends ASTNode {
 // s-expressions get refined and this is one of the control structures that we get.
 class IfExpression extends ASTNode {
 
-  private false_branch_label : string;
-
-  private end_label : string;
-
   constructor(private test : ASTNode, private true_branch : ASTNode, private false_branch : ASTNode) { super(); }
 
   // Pretty simple. Generate labels and recursively annotate the children.
   annotate(context : AnnotationContext) : void {
     // get the labels
-    this.end_label = context.get_label();
-    this.false_branch_label = context.get_label();
+    this.metadata.if_annotation(context);
+    //this.end_label = context.get_label();
+    //this.false_branch_label = context.get_label();
     // recurse
     this.test.annotate(context);
     this.true_branch.annotate(context);
@@ -301,14 +300,14 @@ class IfExpression extends ASTNode {
   // Nothing too fancy. Just some labels and jumps.
   // [test] jumpz(false) [true] jump(end) false [false] end
   compile() : Array<Instruction> {
-    return this.test.compile().concat([I.JUMPZ({label: this.false_branch_label})]).concat(this.true_branch.compile()).concat(
-      [I.JUMP({label: this.end_label}), I.LABEL({label: this.false_branch_label})]).concat(this.false_branch.compile()).concat(
-        [I.LABEL({label: this.end_label})]);
+    return this.test.compile().concat([I.JUMPZ(this.metadata.if_false_branch_label_data)]).concat(this.true_branch.compile()).concat(
+      [I.JUMP(this.metadata.if_end_label_data), I.LABEL(this.metadata.if_false_branch_label_data)]).concat(this.false_branch.compile()).concat(
+        [I.LABEL(this.metadata.if_end_label_data)]);
   }
 
 }
 
-// Exactly what it sounds like. We have a symbol that is the name of the function and the list of arguments.
+// Exactly what it sounds like. We have a symbol or anonymous function and the list of arguments.
 class FunctionCall extends ASTNode {
 
   // There are only three possibilities for what can be the head of the function call:
@@ -328,7 +327,7 @@ class FunctionCall extends ASTNode {
     return compiled_args.concat(compiled_func).concat([I.PUSHSTACK({count: this.args.length + 1}), I.APPLY()]);
   }
 
-  // Doesn't look like I need to do anything other than recursively call annotate.
+  // Need to figure out how to keep track of the type, e.g. closure, regular.
   annotate(context : AnnotationContext) : void {
     this.args.forEach(x => x.annotate(context));
     var func_call_context = context.increment();
@@ -341,29 +340,24 @@ class FunctionCall extends ASTNode {
 // Anonymous function is just a set of arguments which need to be symbols and a body.
 class AnonymousFunction extends ASTNode {
 
-  // We use the label during a second pass to resolve jump addresses.
-  private starting_label : string;
-
-  // Marks the end of the function body.
-  private ending_label : string;
-
   // Arguments and the body of the function.
   constructor(private args : Array<Symbol>, private body : FunctionBody) { super(); }
 
   // Mark the starting point for the function. Compile the instructions. Make a function object
   // that points at the starting label as the code start point.
   compile() : Array<Instruction> {
-    return [I.LABEL({label: this.starting_label}),
-      I.MKFUNC({label: this.ending_label, argument_count: this.args.length})].concat(
+    return [I.LABEL(this.metadata.anonymous_func_starting_label),
+      I.MKFUNC(this.metadata.anonymous_func_mkfunc_data)].concat(
         I.ARGCHECK({count: this.args.length})).concat(this.body.compile()).concat(
-          [I.RETURN(), I.LABEL({label: this.ending_label})]);
+          [I.RETURN(), I.LABEL(this.metadata.anonymous_func_ending_label)]);
   }
 
   // Generate the label and then increment the context and annotate the arguments and body in that context.
   // Incrementing the context because we want to mimic the scoping rules of the language.
   annotate(context : AnnotationContext) : void {
-    this.starting_label = context.get_label();
-    this.ending_label = this.starting_label + 'end';
+    this.metadata.anonymous_function_annotation(context);
+    //this.starting_label = context.get_label();
+    //this.ending_label = this.starting_label + 'end';
     var body_context = context.increment();
     this.args.forEach(x => x.annotate(body_context));
     this.body.annotate(body_context);
