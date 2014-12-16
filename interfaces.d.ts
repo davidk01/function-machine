@@ -4,6 +4,15 @@ interface LabelMap {
   [label : string] : number;
 }
 
+interface ClosureRef {
+  arg_vector : HeapRef;
+  pc : number;
+}
+
+interface ArgCheckArgument {
+  count : number;
+}
+
 interface StackLocation {
   stack : number;
   stack_location : number;

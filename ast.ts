@@ -355,7 +355,8 @@ class AnonymousFunction extends ASTNode {
   compile() : Array<Instruction> {
     return [I.LABEL({label: this.starting_label}),
       I.MKFUNC({label: this.ending_label, argument_count: this.args.length})].concat(
-        this.body.compile()).concat([I.RETURN(), I.LABEL({label: this.ending_label})]);
+        I.ARGCHECK({count: this.args.length})).concat(this.body.compile()).concat(
+          [I.RETURN(), I.LABEL({label: this.ending_label})]);
   }
 
   // Generate the label and then increment the context and annotate the arguments and body in that context.

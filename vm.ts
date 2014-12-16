@@ -1,11 +1,5 @@
 /// <reference path="interfaces.d.ts" />
 
-// Basic instructions
-enum Instructions {
-  LOAD, MKBASIC, INITVAR, STOREA, LABEL, MKFUNC,
-  JUMPZ, JUMP, PUSHSTACK, APPLY, LOADVAR, RETURN
-}
-
 // Builtin functions
 enum Builtins {
   PLUS
@@ -23,12 +17,18 @@ class Instruction {
     if (this.is_null(args.stack && args.stack_location)) {
       throw new Error('Must provide stack and stack location.');
     }
-    return new Instruction(Instructions.LOADVAR, args);
+    return new Instruction('loadvar', args);
+  }
+
+  // Checks the stack argument count to make sure the function can be applied.
+  // In case there aren't enough arguments we need to return a closure.
+  static ARGCHECK(args : ArgCheckArgument) {
+    return new Instruction('argcheck', args);
   }
 
   // Return instruction.
   static RETURN() {
-    return new Instruction(Instructions.RETURN, null);
+    return new Instruction('return', null);
   }
 
   // Push 'n' number of variables onto a new stack.
@@ -36,12 +36,12 @@ class Instruction {
     if (this.is_null(args.count)) {
       throw new Error('Must provide number of elements to push onto new stack.');
     }
-    return new Instruction(Instructions.PUSHSTACK, args);
+    return new Instruction('pushstack', args);
   }
 
   // Apply the function object at the top of the stack.
   static APPLY() {
-    return new Instruction(Instructions.APPLY, null);
+    return new Instruction('apply', null);
   }
 
   // Jump if zero.
@@ -49,7 +49,7 @@ class Instruction {
     if (this.is_null(args.label)) {
       throw new Error('Must provide jump label.');
     }
-    return new Instruction(Instructions.JUMPZ, args);
+    return new Instruction('jumpz', args);
   }
 
   // Unconditional jump.
@@ -57,7 +57,7 @@ class Instruction {
     if (this.is_null(args.label)) {
       throw new Error('Must provide jump label.');
     }
-    return new Instruction(Instructions.JUMP, args);
+    return new Instruction('jump', args);
   }
 
   // Load a constant.
@@ -65,12 +65,12 @@ class Instruction {
     if (this.is_null(constant.constant)) {
       throw new Error('Must provide constant.');
     }
-    return new Instruction(Instructions.LOAD, constant);
+    return new Instruction('load', constant);
   }
 
   // Make a basic variable of whatever sitting on top of the stack.
   static MKBASIC() {
-    return new Instruction(Instructions.MKBASIC, null);
+    return new Instruction('mkbasic', null);
   }
 
   // Initialize a variable on top of stack. Basically a null pointer.
@@ -78,7 +78,7 @@ class Instruction {
     if (this.is_null(args.var_location)) {
       throw new Error('Must provide location for variable initialization.');
     }
-    return new Instruction(Instructions.INITVAR, args);
+    return new Instruction('initvar', args);
   }
 
   // Store whatever is on top of the stack at the given location on the stack.
@@ -86,7 +86,7 @@ class Instruction {
     if (this.is_null(args.store_location)) {
       throw new Error('Must provide store location.');
     }
-    return new Instruction(Instructions.STOREA, args);
+    return new Instruction('storea', args);
   }
 
   // Label for jumps.
@@ -94,17 +94,17 @@ class Instruction {
     if (this.is_null(args.label)) {
       throw new Error('Must provide label.');
     }
-    return new Instruction(Instructions.LABEL, args);
+    return new Instruction('label', args);
   }
 
   static MKFUNC(args : MkfuncArgument) {
     if (this.is_null(args.label && args.argument_count)) {
       throw new Error('Missing parameters for MKFUNC.');
     }
-    return new Instruction(Instructions.MKFUNC, args);
+    return new Instruction('mkfunc', args);
   }
 
-  constructor(public instruction : Instructions, public args : any) { }
+  constructor(public instruction : string, public args : any) { }
 
 }
 
@@ -119,18 +119,37 @@ class HeapRef {
   constructor(public type : RefType, public value : any) { }
 
   repr() : string {
-    return "{Type = " + this.type + " , Value = " + JSON.stringify(this.value) + "}";
+    var val = typeof this.value == "function" ? "func" : this.value;
+    return "Ref@" + val;
   }
 
 }
 
 // Heap references point to heap values.
 class HeapVal {
-  
+
   constructor(public type : RefType, public value : any) { }
 
   repr() : string {
-    return "type = " + this.type + ", value = " + this.value;
+    var t : string;
+    switch(this.type) {
+      case RefType.BASIC:
+        t = "b";
+        break;
+      case RefType.VECTOR:
+        t = "v";
+        break;
+      case RefType.BUILTIN:
+        t = "bi";
+        break;
+      case RefType.FUNCTION:
+        t = "f";
+        break;
+      case RefType.CLOSURE:
+        t = "c";
+        break;
+    }
+    return t + ':' + this.value;
   }
 
 }
@@ -150,7 +169,7 @@ class Heap {
   repr() : string {
     var accumulator : string = "";
     for (var i = 0; i < this.current_index; i++) {
-      accumulator += ("" + i + " => " + this.heap[i].repr() + "\n");
+      accumulator += (this.heap[i].repr() + "@" + i + "\n");
     }
     return accumulator;
   }
@@ -160,20 +179,31 @@ class Heap {
     return this.heap[ref.value];
   }
 
-  // Generate a function pointer.
-  func_ref(pc : number) : HeapRef {
-    var new_ref : HeapRef = new HeapRef(RefType.FUNCTION, this.current_index);
-    this.heap[this.current_index] = new HeapVal(RefType.FUNCTION, pc);
+  // One place to do the index incrementing and assignment.
+  private ref_maker(type : RefType, value : HeapVal) {
+    var new_ref : HeapRef = new HeapRef(type, this.current_index);
+    this.heap[this.current_index] = value;
     this.current_index += 1;
     return new_ref;
   }
 
+  // Generate a function pointer.
+  func_ref(pc : number) : HeapRef {
+    return this.ref_maker(RefType.FUNCTION, new HeapVal(RefType.FUNCTION, pc));
+  }
+
   // Generate a basic value pointer.
   basic_ref(val : number) : HeapRef {
-    var new_ref : HeapRef = new HeapRef(RefType.BASIC, this.current_index);
-    this.heap[this.current_index] = new HeapVal(RefType.BASIC, val);
-    this.current_index += 1;
-    return new_ref;
+    return this.ref_maker(RefType.BASIC, new HeapVal(RefType.BASIC, val));
+  }
+
+  // Take an array of references and just store them.
+  vector_ref(stack : Array<HeapRef>) : HeapRef {
+    return this.ref_maker(RefType.VECTOR, new HeapVal(RefType.VECTOR, stack));
+  }
+
+  closure_ref(args : ClosureRef) : HeapRef {
+    return this.ref_maker(RefType.CLOSURE, new HeapVal(RefType.CLOSURE, args));
   }
 
 }
@@ -266,6 +296,10 @@ class Stack {
     return this.stack.pop();
   }
 
+  reset() : void {
+    this.stack = [];
+  }
+
 }
 
 // What runs our code.
@@ -324,11 +358,11 @@ class VM {
     for (var i = 0; i < this.instructions.length; i++) {
       var instruction = this.instructions[i];
       var args : any = instruction.args;
-      if (instruction.instruction == Instructions.LABEL &&
+      if (instruction.instruction == 'label' &&
         this.is_not_null(args) && args.label && args.label == label) {
-        this.label_map[label] = i;
-        return i;
-      }
+          this.label_map[label] = i;
+          return i;
+        }
     }
     throw new Error('Could not resolve label.');
   }
@@ -336,7 +370,7 @@ class VM {
   // A string representation of the current VM state.
   repr() : string {
     return  "pc: " + this.pc.toString() + "\n" +
-      "ir: " + JSON.stringify(this.ir) + "\n" +
+      "ir: " + this.ir.instruction + "\n" +
       "stack: " + this.stack.repr() + "\n" +
       "heap: " + this.heap.repr();
   }
@@ -362,46 +396,70 @@ class VM {
     this.pc += 1;
   }
 
+  basic_ref(val : number) : HeapRef {
+    return this.heap.basic_ref(val);
+  }
+
+  func_ref(pc : number) : HeapRef {
+    return this.heap.func_ref(pc);
+  }
+
+  stack_length() : number {
+    return this.stack.stack.length;
+  }
+
+  vector_ref(vals : Array<HeapRef>) : HeapRef {
+    return this.heap.vector_ref(vals);
+  }
+
+  closure_ref(arg_vector : HeapRef, pc : number) : HeapRef {
+    return this.heap.closure_ref({arg_vector: arg_vector, pc: pc});
+  }
+
+  reset() : void {
+    this.stack.reset();
+  }
+
   // Execute the instruction.
   execute() : void {
     var args : any = this.ir.args;
     switch(this.ir.instruction) {
-      case Instructions.LOAD: // Just loads a constant
+      case 'load': // Just loads a constant
         console.log('LOAD: ', args.constant);
         this.stack.push(args.constant);
         break;
-      case Instructions.MKBASIC: // Make a basic variable reference, ints for the time being
+      case 'mkbasic': // Make a basic variable reference, ints for the time being
         console.log('MKBASIC');
         var basic : number = (<number>this.stack.pop());
-        var basic_ref : HeapRef = this.heap.basic_ref(basic);
+        var basic_ref : HeapRef = this.basic_ref(basic);
         this.stack.push(basic_ref);
         break;
-      case Instructions.INITVAR: // Initialize a variable on the stack at a specific location
+      case 'initvar': // Initialize a variable on the stack at a specific location
         console.log('INITVAR');
         throw new Error();
         break;
-      case Instructions.STOREA: // Store the top of the stack at the specified address
+      case 'storea': // Store the top of the stack at the specified address
         console.log('STOREA');
         throw new Error();
         break;
-      case Instructions.LABEL: // noop, just used for resolving jump addresses
+      case 'label': // noop, just used for resolving jump addresses
         console.log('LABEL');
         break;
-      case Instructions.MKFUNC: // Make a function object and push the reference onto the stack
+      case 'mkfunc': // Make a function object and push the reference onto the stack
         console.log('MKFUNC');
-        var func_ref : HeapRef = this.heap.func_ref(this.pc);
+        var func_ref : HeapRef = this.func_ref(this.pc);
         this.stack.push(func_ref);
         this.pc = this.resolve_label(args.label);
         break;
-      case Instructions.JUMPZ: // Jump if top of stack is zero
+      case 'jumpz': // Jump if top of stack is zero
         console.log('JUMPZ');
         throw new Error();
         break;
-      case Instructions.JUMP: // Unconditional jump
+      case 'jump': // Unconditional jump
         console.log('JUMP');
         throw new Error();
         break;
-      case Instructions.PUSHSTACK: // Push specified number of values onto new stack and preserve the order
+      case 'pushstack': // Push specified number of values onto new stack and preserve the order
         console.log('PUSHSTACK: ', args.count);
         var new_stack : Stack = this.stack.increment();
         for (var i = 0; i < args.count; i++) {
@@ -409,11 +467,11 @@ class VM {
         }
         this.stack = new_stack;
         break;
-      case Instructions.RETURN:
+      case 'return':
         console.log('RETURN: ', this.returns[this.returns.length - 1]);
-        vm.ret();
+        this.ret();
         break;
-      case Instructions.APPLY: // Apply the function reference on top of stack
+      case 'apply': // Apply the function reference on top of stack
         console.log('APPLY');
         this.returns.push(this.pc);
         var func_ref : HeapRef = this.stack.pop();
@@ -421,12 +479,28 @@ class VM {
           func_ref.value(this);
           return;
         } else if (func_ref.type == RefType.FUNCTION) {
-          var destination : number = vm.deref(func_ref).value;
+          var destination : number = this.deref(func_ref).value;
           this.pc = destination;
           return;
+        } else if (func_ref.type == RefType.CLOSURE) {
+          throw new Error();
         }
         throw new Error('Can not apply non-function reference.');
-      case Instructions.LOADVAR: // Load a variable from a specific stack and location
+      case 'argcheck':
+        console.log('ARGCHECK: ', args.count);
+        // happy case. don't need to do anything.
+        if (args.count === this.stack_length()) {
+          return;
+        }
+        // we have less arguments than we need so need to generate closure
+        if (args.count > this.stack_length()) {
+          var vector_ref : HeapRef = this.vector_ref(this.stack.stack);
+          this.reset();
+          this.stack.push(this.closure_ref(vector_ref, this.pc - 1));
+          this.ret();
+        }
+        break;
+      case 'loadvar': // Load a variable from a specific stack and location
         console.log('LOADVAR: ', args.stack, args.stack_location);
         this.stack.push(this.stack.get_variable(args));
         break;
