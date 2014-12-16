@@ -1,79 +1,7 @@
 /// <reference path="vm.ts" />
+/// <reference path="annotationcontext.ts" />
 // Top of syntax tree hierarchy.
 var I = Instruction;
-
-// Keeps track of various bits for annotating the AST. Not sure if I should call this typechecking
-// because it is some kind of static analysis.
-class AnnotationContext {
-
-  // Location of the latest variable declaration.
-  private latest_location : number;
-
-  // We generate unique labels using this number.
-  private label_number : number;
-
-  // Keep track of variables in the current scope.
-  private variables : VariableMap;
-
-  // Keeps track of stack increments during function calls.
-  private stack_number : number;
-
-  // Keep track of the parent context to mirror the scoping rules of the language.
-  constructor(private up : AnnotationContext) {
-    if (!this.up) {
-      this.variables = ContextBuiltins;
-    } else {
-      this.variables = {};
-    }
-    this.label_number = (this.up && this.up.get_label_number()) || -1;
-    this.latest_location = (this.up && this.up.get_latest_location()) || 0;
-    this.stack_number = (this.up && this.up.get_stack_number()) || 0;
-  }
-
-  has_variable(variable : Symbol) : boolean {
-    return !!(this.variables[variable.symb] || (this.up && this.up.has_variable(variable)));
-  }
-
-  get_variable(variable : Symbol) : Symbol {
-    return this.variables[variable.symb] || (this.up && this.up.get_variable(variable));
-  }
-
-  get_label_number() : number {
-    return this.label_number;
-  }
-
-  // Tack on another context whenver we introduce new scope.
-  increment() : AnnotationContext {
-    return new AnnotationContext(this);
-  }
-
-  add_variable(name : string, node : Symbol) : void {
-    this.latest_location += 1;
-    this.variables[name] = node;
-  }
-
-  get_latest_location() : number {
-    return this.latest_location;
-  }
-
-  get_stack_number() : number {
-    return this.stack_number;
-  }
-
-  // The ordering of things is again important because of the various side-effects of incrementing stack and
-  // location numbers.
-  increment_stack_number() : void {
-    this.stack_number += 1;
-    this.latest_location = 0;
-  }
-
-  // Increment the label counter and give us another unique label.
-  get_label() : string {
-    this.label_number += 1;
-    return 'label' + this.label_number;
-  }
-
-}
 
 class ASTNode { 
 
@@ -97,6 +25,8 @@ class ASTNode {
 // Number.
 class Num extends ASTNode { 
 
+  // Metadata: Nothing interesting as far as annotations go.
+
   constructor(private num : number) { super(); }
 
   // Nothing to do.
@@ -114,14 +44,13 @@ class Num extends ASTNode {
 // Symbol. Just a wrapper around a set of characters.
 class Symbol extends ASTNode {
 
+  // Metadata: Interesting stuff is happening here. Need to know the type at a very
+  // high level and also potential location on the stack when loading.
+
   constructor(public symb : string) { super(); }
 
   symbol() : boolean { return true; }
 
-  // Annotate with stack number and location. The order in which we call things is important because
-  // adding a variable increments the latest stack location. Might be a better way to do this.
-  // We also need to be careful about annotating variables that have already been declared. If the variable
-  // has already been declared then we annotate it with the same data as the previous declaration.
   annotate(context : AnnotationContext) : void {
     if (context.has_variable(this)) {
       // Not sure if this is valid. TODO: Fix this.
@@ -131,8 +60,6 @@ class Symbol extends ASTNode {
       return;
     }
     this.metadata.symbol_annotation(context);
-    //this.stack = context.get_stack_number();
-    //this.stack_location = context.get_latest_location();
     context.add_variable(this.symb, this);
   }
 
@@ -158,6 +85,8 @@ var ContextBuiltins : BuiltinMap = {
 // List the data not the s-expression.
 class List extends ASTNode {
 
+  // Metadata: Nothing interesting going on other than the length maybe.
+
   constructor(private list : Array<ASTNode>) { super(); }
 
   annotate(context : AnnotationContext) : void {
@@ -172,6 +101,8 @@ class List extends ASTNode {
 
 // Basically same as List but is more like the mathematical vector than a list.
 class Tuple extends ASTNode {
+
+  // Metadata: Very much like the list.
 
   constructor(private elements : Array<ASTNode>) { super(); }
 
@@ -188,6 +119,8 @@ class Tuple extends ASTNode {
 // Generic sequence of AST nodes with a head and a tail.
 class SExpr extends ASTNode {
 
+  // Metadata: Does not show up anywhere in final AST so nothing to do.
+
   private head : ASTNode;
 
   private tail : Array<ASTNode>;
@@ -202,10 +135,8 @@ class SExpr extends ASTNode {
     throw new Error('Should never happen.');
   }
 
-  // SExpr should not appear anywhere during the compilation process because the refinement process
-  // must get rid of all SExpr instances.
   annotate(context : AnnotationContext) : void {
-    throw new Error('Should never be called.');
+    throw new Error('Should never be called. Indicates error in refinement process.');
   }
 
   // Let bindings come in pairs of (variable, value).
@@ -283,6 +214,8 @@ class SExpr extends ASTNode {
 // s-expressions get refined and this is one of the control structures that we get.
 class IfExpression extends ASTNode {
 
+  // Metadata: Need jump labels and the type of the test expression to actually be a number.
+
   constructor(private test : ASTNode, private true_branch : ASTNode, private false_branch : ASTNode) { super(); }
 
   // Pretty simple. Generate labels and recursively annotate the children.
@@ -309,6 +242,9 @@ class IfExpression extends ASTNode {
 
 // Exactly what it sounds like. We have a symbol or anonymous function and the list of arguments.
 class FunctionCall extends ASTNode {
+
+  // Metadata: The result type will be helpful to keep around to know if we are dealing with a closure
+  // or just a regular function call that is going to succeed.
 
   // There are only three possibilities for what can be the head of the function call:
   // anonymous function, built-in, or function reference.
@@ -340,7 +276,8 @@ class FunctionCall extends ASTNode {
 // Anonymous function is just a set of arguments which need to be symbols and a body.
 class AnonymousFunction extends ASTNode {
 
-  // Arguments and the body of the function.
+  // Metadata: Argument count is important and also what the return type will be?
+
   constructor(private args : Array<Symbol>, private body : FunctionBody) { super(); }
 
   // Mark the starting point for the function. Compile the instructions. Make a function object
@@ -368,6 +305,8 @@ class AnonymousFunction extends ASTNode {
 // A wrapper around a generic ASTNode.
 class FunctionBody extends ASTNode {
 
+  // Metadata: Not sure what I need here other than maybe the return type.
+
   constructor(private exprs : ASTNode) { super(); }
 
   compile() : Array<Instruction> {
@@ -383,6 +322,8 @@ class FunctionBody extends ASTNode {
 
 // Introduces a set of bindings in pairs: <var expr> <var expr> ...
 class LetExpressions extends ASTNode {
+
+  // Metadata: Count of bindings and the resulting body type.
 
   constructor(private bindings : Array<BindingPair>, private body : ASTNode) { super(); }
 
@@ -408,6 +349,8 @@ class LetExpressions extends ASTNode {
 // The actual binding pair that appears in let expressions.
 class BindingPair extends ASTNode {
 
+  // Metadata: TODO.
+
   constructor(private variable : Symbol, private value : ASTNode) { super(); }
 
   // Compile the variable. Compile the value. Perform the assignment.
@@ -429,6 +372,8 @@ class BindingPair extends ASTNode {
 // Pattern matching.
 class MatchExpression extends ASTNode {
 
+  // Metadata: TODO:
+
   constructor(private value : ASTNode, private patterns : Array<PatternPair>) { super(); }
 
   compile() : Array<Instruction> {
@@ -445,6 +390,8 @@ class MatchExpression extends ASTNode {
 
 // Like let expressions but this time we have pattern matching pairs.
 class PatternPair extends ASTNode {
+
+  // Metadata: TODO.
 
   constructor(private pattern : ASTNode, private expression : ASTNode) { super(); }
 
