@@ -58,10 +58,9 @@ function parse_input() {
 
 // Refine the s-expressions.
 function ast_input() {
-  var s_exprs : Array<ASTNode> = parse_input();
-  var refined_ast = T.refine_sexprs(s_exprs);
-  ast_area().value = JSON.stringify(refined_ast);
-  return refined_ast;
+  var ast : Array<ASTNode> = parse_input();
+  ast_area().value = JSON.stringify(ast);
+  return ast;
 }
 
 // Compile the intput to VM instructions.

@@ -1,6 +1,5 @@
 /// <reference path="vm.ts" />
 /// <reference path="annotationcontext.ts" />
-// Top of syntax tree hierarchy.
 var I = Instruction;
 
 class LoadVarData {
@@ -27,36 +26,8 @@ class StackLocation {
 
 }
 
-class Attributes {
-
-  private attrs : { [n : string] : any };
-
-  constructor() {
-    this.attrs = {};
-  }
-
-  get_stack_data() : StackLocation {
-    throw new Error();
-  }
-
-  if_false_branch_label_data : LabelData;
-
-  if_end_label_data : LabelData;
-
-  anonymous_func_starting_label : LabelData;
-
-  anonymous_func_mkfunc_data : MkFuncData;
-
-  anonymous_func_ending_label : LabelData;
-
-  stack_location : StackLocation;
-
-}
-
 // Top of AST hierarchy.
 class ASTNode { 
-
-  refine() : ASTNode { return this; }
 
   symbol() : boolean { return false; }
 
@@ -73,7 +44,7 @@ class ASTNode {
 // Number.
 class Num extends ASTNode { 
 
-  constructor(private num : number) { super(); }
+  constructor(private num : number, public attrs : any) { super(); }
 
   // Load the constant and push it to the heap.
   compile() : Array<Instruction> {
@@ -85,7 +56,7 @@ class Num extends ASTNode {
 // Symbol. Just a wrapper around a set of characters.
 class Symbol extends ASTNode {
 
-  constructor(public symb : string) { super(); }
+  constructor(public symb : string, public attrs : any) { super(); }
 
   symbol() : boolean { return true; }
 
@@ -96,14 +67,10 @@ class Symbol extends ASTNode {
 
 }
 
-var ContextBuiltins : VariableMap = new VariableMap({
-  '+': new Symbol('+')
-});
-
 // List the data not the s-expression.
 class List extends ASTNode {
 
-  constructor(private list : Array<ASTNode>) { super(); }
+  constructor(private list : Array<ASTNode>, public attrs : any) { super(); }
 
   compile() : Array<Instruction> {
     throw new Error();
@@ -114,7 +81,7 @@ class List extends ASTNode {
 // Basically same as List but is more like the mathematical vector than a list.
 class Tuple extends ASTNode {
 
-  constructor(private elements : Array<ASTNode>) { super(); }
+  constructor(private elements : Array<ASTNode>, public attrs : any) { super(); }
 
   compile() : Array<Instruction> {
     throw new Error();
@@ -134,99 +101,10 @@ class ClosureApplication extends ASTNode {
 
 }
 
-// Generic sequence of AST nodes with a head and a tail.
-class SExpr extends ASTNode {
-
-  private head : ASTNode;
-
-  private tail : Array<ASTNode>;
-
-  constructor(private expressions : Array<ASTNode>) { 
-    super(); 
-    this.head = expressions[0];
-    this.tail = expressions.slice(1);
-  }
-
-  compile() : Array<Instruction> {
-    throw new Error('Should never happen.');
-  }
-
-  // Let bindings come in pairs of (variable, value).
-  refine_let_bindings() : Array<BindingPair> {
-    if (this.expressions.length % 2 != 0) {
-      throw new Error("Let bindings must have even length.");
-    }
-    var variables : Array<Symbol> = this.expressions.reduce((m, e, index, exprs) : Array<Symbol> => {
-      if (index % 2 == 0) {
-        m.push(e.refine());
-      }
-      return m; 
-    }, []);
-    var expressions : Array<ASTNode> = this.expressions.reduce((m, e, index, exprs) : Array<ASTNode> => {
-      if (index % 2 == 1) {
-        m.push(e.refine());
-      }
-      return m; 
-    }, []);
-    var accumulator : Array<BindingPair> = [];
-    variables.forEach((current_var, index, vars) => accumulator.push(new BindingPair(current_var, expressions[index])));
-    return accumulator;
-  }
-
-  // Need to make sure everything is a symbol.
-  refine_argument_definitions() : Array<Symbol> {
-    if (!this.head.symbol()) {
-      throw new Error("Function arguments must be all symbols.");
-    }
-    var symbols : Array<Symbol> = this.tail.map((element : ASTNode, index : number, elements : Array<ASTNode>) : Symbol => {
-      if (!element.symbol()) {
-        throw new Error("Function arguments must be symbols.");
-      }
-      return (<Symbol>element);
-    });
-    return [(<Symbol>this.head)].concat(symbols);
-  }
-
-  // Pattern matching is its own set of problems so as in the book we only focus on very simple
-  // patterns that are one level deep. Extension to more general patterns is for future enhancements.
-  refine_match_patterns() : Array<PatternPair> {
-    if (this.expressions.length % 2 != 0) {
-      throw new Error("Pattern pairs must come in pairs.");
-    }
-    var pattern_pairs : Array<PatternPair> = [];
-    this.expressions.forEach((element, index, expressions) => {
-      if (index % 2 == 0) {
-        pattern_pairs.push(new PatternPair(element, expressions[index + 1]));
-      }
-    });
-    return pattern_pairs;
-  }
-
-  // Can't return anything specific because it can be any number of things like function call, anonymous function, match
-  // expression, etc.
-  refine() : ASTNode {
-    if (this.head.symbol()) {
-      switch((<Symbol>this.head).symb) {
-        case 'fun': // function definition
-          return null;
-        case 'let': // let binding
-          return new LetExpressions((<SExpr>this.tail[0]).refine_let_bindings(), this.tail[1].refine());
-        case 'match': // pattern matching
-          return new MatchExpression(this.tail[0].refine(), (<SExpr>this.tail[1]).refine_match_patterns());
-        case 'if': // conditional
-          return new IfExpression(this.tail[0].refine(), this.tail[1].refine(), this.tail[2].refine());
-      }
-    }
-    // Otherwise it must be a function call.
-    return new FunctionCall(this.head.refine(), this.tail.map((x : ASTNode) : ASTNode => x.refine()));
-  }
-
-}
-
 // s-expressions get refined and this is one of the control structures that we get.
 class IfExpression extends ASTNode {
 
-  constructor(private test : ASTNode, private true_branch : ASTNode, private false_branch : ASTNode) { super(); }
+  constructor(private test : ASTNode, private true_branch : ASTNode, private false_branch : ASTNode, public attrs : any) { super(); }
 
   // Nothing too fancy. Just some labels and jumps.
   // [test] jumpz(false) [true] jump(end) false [false] end
@@ -261,7 +139,7 @@ class FunctionCall extends ASTNode {
 // Anonymous function is just a set of arguments which need to be symbols and a body.
 class AnonymousFunction extends ASTNode {
 
-  constructor(private args : Array<Symbol>, private body : FunctionBody, public attrs : { arg_count : number }) { super(); }
+  constructor(private args : Array<Symbol>, private body : FunctionBody, public attrs : any) { super(); }
 
   // Mark the starting point for the function. Compile the instructions. Make a function object
   // that points at the starting label as the code start point.
@@ -288,7 +166,7 @@ class FunctionBody extends ASTNode {
 // Introduces a set of bindings in pairs: <var expr> <var expr> ...
 class LetExpressions extends ASTNode {
 
-  constructor(private bindings : Array<BindingPair>, private body : ASTNode) { super(); }
+  constructor(private bindings : Array<BindingPair>, private body : ASTNode, public attrs : any) { super(); }
 
   // Compile the bindings. Compile the body. Stick them together.
   compile() : Array<Instruction> {
@@ -304,34 +182,12 @@ class LetExpressions extends ASTNode {
 // The actual binding pair that appears in let expressions.
 class BindingPair extends ASTNode {
 
-  constructor(private variable : Symbol, private value : ASTNode) { super(); }
+  constructor(private variable : Symbol, private value : ASTNode, public attrs : any) { super(); }
 
   // Compile the variable. Compile the value. Perform the assignment.
   compile() : Array<Instruction> {
     var var_location = this.variable.attrs.stack_location;
     return [I.INITVAR(var_location)].concat(this.value.compile()).concat([I.STOREA(var_location)]);
-  }
-
-}
-
-// Pattern matching.
-class MatchExpression extends ASTNode {
-
-  constructor(private value : ASTNode, private patterns : Array<PatternPair>) { super(); }
-
-  compile() : Array<Instruction> {
-    throw new Error();
-  }
-
-}
-
-// Like let expressions but this time we have pattern matching pairs.
-class PatternPair extends ASTNode {
-
-  constructor(private pattern : ASTNode, private expression : ASTNode) { super(); }
-
-  compile() : Array<Instruction> {
-    throw new Error();
   }
 
 }

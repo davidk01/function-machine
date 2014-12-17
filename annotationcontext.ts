@@ -28,11 +28,7 @@ class AnnotationContext {
 
   // Keep track of the parent context to mirror the scoping rules of the language.
   constructor(private up : AnnotationContext) {
-    if (!this.up) {
-      this.variables = ContextBuiltins;
-    } else {
-      this.variables = new VariableMap({});
-    }
+    this.variables = new VariableMap({});
     this.label_number = (this.up && this.up.get_label_number()) || -1;
     this.latest_location = (this.up && this.up.get_latest_location()) || 0;
     this.stack_number = (this.up && this.up.get_stack_number()) || 0;
