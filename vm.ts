@@ -5,6 +5,8 @@ enum Builtins {
   PLUS
 }
 
+interface InstructionArgs { }
+
 class Instruction { 
 
   private static is_null(obj : any) : boolean {
@@ -104,7 +106,7 @@ class Instruction {
     return new Instruction('mkfunc', args);
   }
 
-  constructor(public instruction : string, public args : any) { }
+  constructor(public instruction : string, public args : InstructionArgs) { }
 
 }
 
@@ -113,10 +115,12 @@ enum RefType {
   BASIC, VECTOR, BUILTIN, FUNCTION, CLOSURE
 }
 
+interface HeapRefValue { }
+
 // An actual heap reference.
 class HeapRef {
 
-  constructor(public type : RefType, public value : any) { }
+  constructor(public type : RefType, public value : HeapRefValue) { }
 
   repr() : string {
     var val = typeof this.value == "function" ? "func" : this.value;
@@ -124,6 +128,8 @@ class HeapRef {
   }
 
 }
+
+interface HeapValValue { }
 
 // Heap references point to heap values.
 class HeapVal {
@@ -175,8 +181,8 @@ class Heap {
   }
 
   // Dereference a heap reference.
-  get_ref(ref : HeapRef) : any {
-    return this.heap[ref.value];
+  get_ref(ref : StackValue) : HeapVal {
+    return this.heap[ref.address];
   }
 
   // One place to do the index incrementing and assignment.
@@ -213,11 +219,11 @@ function generate_builtins() {
   var builtins : HeapMap = {};
   // PLUS
   var plus = function(vm : VM) : void {
-    var arg1_ref : HeapRef = vm.stack.pop();
+    var arg1_ref : StackValue = vm.stack.pop();
     if (!(arg1_ref.type == RefType.BASIC)) {
       throw new Error('First argument type must be basic.');
     }
-    var arg2_ref : HeapRef = vm.stack.pop();
+    var arg2_ref : StackValue = vm.stack.pop();
     if (!(arg1_ref.type == RefType.BASIC)) {
       throw new Error('Second argument type must be basic.');
     }
@@ -229,6 +235,11 @@ function generate_builtins() {
   }
   builtins[Builtins.PLUS] = new HeapRef(RefType.BUILTIN, plus);
   return builtins;
+}
+
+interface StackValue { 
+  type: RefType;
+  address: number;
 }
 
 // Stack, wraps an array and exposes some basic operations.
@@ -265,7 +276,7 @@ class Stack {
     return Stack.builtins[builtin_location];
   }
 
-  get_variable(args : StackLocation) : any {
+  get_variable(args : StackLocation) : StackValue {
     if (args.stack == -1) { // Working with builtins
       return this.get_builtin(args.stack_location);
     }
@@ -283,16 +294,16 @@ class Stack {
     return new Stack(this, this.level + 1);
   }
 
-  unshift(val : any) : void {
+  unshift(val : StackValue) : void {
     this.stack.unshift(val);
   }
 
   // Just push a constant on the stack. Constants for now are just ints.
-  push(val : any) : void {
+  push(val : StackValue) : void {
     this.stack.push(val);
   }
 
-  pop() : any {
+  pop() : StackValue {
     return this.stack.pop();
   }
 
@@ -339,14 +350,14 @@ class VM {
 
   // Push top of stack onto previous stack, reset stack, and pc.
   ret() : void {
-    var return_value : HeapRef = this.stack.pop();
+    var return_value : StackValue = this.stack.pop();
     this.stack = this.stack.up;
     this.stack.push(return_value);
     this.pc = this.returns.pop();
   }
 
   // Dereference whatever is passed in.
-  deref(ref : HeapRef) : HeapVal {
+  deref(ref : StackValue) : HeapVal {
     return this.heap.get_ref(ref);
   }
 
@@ -357,7 +368,7 @@ class VM {
     }
     for (var i = 0; i < this.instructions.length; i++) {
       var instruction = this.instructions[i];
-      var args : any = instruction.args;
+      var args : InstructionArgs = instruction.args;
       if (instruction.instruction == 'label' &&
         this.is_not_null(args) && args.label && args.label == label) {
           this.label_map[label] = i;
@@ -422,7 +433,7 @@ class VM {
 
   // Execute the instruction.
   execute() : void {
-    var args : any = this.ir.args;
+    var args : InstructionArgs = this.ir.args;
     switch(this.ir.instruction) {
       case 'load': // Just loads a constant
         console.log('LOAD: ', args.constant);

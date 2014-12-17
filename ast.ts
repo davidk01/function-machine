@@ -3,17 +3,49 @@
 // Top of syntax tree hierarchy.
 var I = Instruction;
 
+interface AttributeMap { }
+
+class Attributes {
+
+  constructor(private attrs : Array<string>) { }
+
+  generate(node : ASTNode, context : AnnotationContext) : AttributeMap {
+    return node.annotation_visitor(this, context);
+  }
+
+  get_stack_data() : StackLocation {
+    throw new Error();
+  }
+
+  if_false_branch_label_data : JumpArgument;
+
+  if_end_label_data : JumpArgument;
+
+  anonymous_func_starting_label : JumpArgument;
+
+  anonymous_func_ending_label : JumpArgument;
+
+  anonymous_func_mkfunc_data : MkfuncArgument;
+
+  stack_location : number;
+
+}
+
+// Top of AST hierarchy.
 class ASTNode { 
 
-  // This is where we are going to keep the results of the annotation pass.
-  metadata : any;
+  attrs : Attributes;
 
   refine() : ASTNode { return this; }
 
   symbol() : boolean { return false; }
 
-  annotate(context : AnnotationContext) : void {
-    throw new Error('Should never happen.');
+  annotate(context : AnnotationContext) : AttributeMap {
+    return this.attrs.generate(this, context);
+  }
+
+  annotation_visitor(attrs : Attributes, context : AnnotationContext) : AttributeMap {
+    throw new Error('Must be defined in subclass.');
   }
 
   compile() : Array<Instruction> {
@@ -25,14 +57,7 @@ class ASTNode {
 // Number.
 class Num extends ASTNode { 
 
-  // Metadata: Nothing interesting as far as annotations go.
-
   constructor(private num : number) { super(); }
-
-  // Nothing to do.
-  annotate(context : AnnotationContext) : void {
-    return;
-  }
 
   // Load the constant and push it to the heap.
   compile() : Array<Instruction> {
@@ -44,36 +69,13 @@ class Num extends ASTNode {
 // Symbol. Just a wrapper around a set of characters.
 class Symbol extends ASTNode {
 
-  // Metadata: Interesting stuff is happening here. Need to know the type at a very
-  // high level and also potential location on the stack when loading.
-
   constructor(public symb : string) { super(); }
 
   symbol() : boolean { return true; }
 
-  annotate(context : AnnotationContext) : void {
-    if (context.has_variable(this)) {
-      // Not sure if this is valid. TODO: Fix this.
-      console.log('Variable already declared. Assuming use site.');
-      var symbol : Symbol = context.get_variable(this);
-      this.metadata = symbol.metadata;
-      return;
-    }
-    this.metadata.symbol_annotation(context);
-    context.add_variable(this.symb, this);
-  }
-
-  get_stack_number() : number {
-    return this.metadata.stack_number;
-  }
-
-  get_stack_location() : number {
-    return this.metadata.stack_location;
-  }
-
   // Load a variable accounting for stack nesting and stack location on that stack level.
   compile() : Array<Instruction> {
-    return [I.LOADVAR(this.metadata.get_stack_data())];
+    return [I.LOADVAR(this.attrs.get_stack_data())];
   }
 
 }
@@ -85,13 +87,7 @@ var ContextBuiltins : BuiltinMap = {
 // List the data not the s-expression.
 class List extends ASTNode {
 
-  // Metadata: Nothing interesting going on other than the length maybe.
-
   constructor(private list : Array<ASTNode>) { super(); }
-
-  annotate(context : AnnotationContext) : void {
-    this.list.forEach(x => x.annotate(context));
-  }
 
   compile() : Array<Instruction> {
     throw new Error();
@@ -102,13 +98,7 @@ class List extends ASTNode {
 // Basically same as List but is more like the mathematical vector than a list.
 class Tuple extends ASTNode {
 
-  // Metadata: Very much like the list.
-
   constructor(private elements : Array<ASTNode>) { super(); }
-
-  annotate(context : AnnotationContext) : void {
-    this.elements.forEach(x => x.annotate(context));
-  }
 
   compile() : Array<Instruction> {
     throw new Error();
@@ -118,8 +108,6 @@ class Tuple extends ASTNode {
 
 // Generic sequence of AST nodes with a head and a tail.
 class SExpr extends ASTNode {
-
-  // Metadata: Does not show up anywhere in final AST so nothing to do.
 
   private head : ASTNode;
 
@@ -133,10 +121,6 @@ class SExpr extends ASTNode {
 
   compile() : Array<Instruction> {
     throw new Error('Should never happen.');
-  }
-
-  annotate(context : AnnotationContext) : void {
-    throw new Error('Should never be called. Indicates error in refinement process.');
   }
 
   // Let bindings come in pairs of (variable, value).
@@ -214,28 +198,14 @@ class SExpr extends ASTNode {
 // s-expressions get refined and this is one of the control structures that we get.
 class IfExpression extends ASTNode {
 
-  // Metadata: Need jump labels and the type of the test expression to actually be a number.
-
   constructor(private test : ASTNode, private true_branch : ASTNode, private false_branch : ASTNode) { super(); }
-
-  // Pretty simple. Generate labels and recursively annotate the children.
-  annotate(context : AnnotationContext) : void {
-    // get the labels
-    this.metadata.if_annotation(context);
-    //this.end_label = context.get_label();
-    //this.false_branch_label = context.get_label();
-    // recurse
-    this.test.annotate(context);
-    this.true_branch.annotate(context);
-    this.false_branch.annotate(context);
-  }
 
   // Nothing too fancy. Just some labels and jumps.
   // [test] jumpz(false) [true] jump(end) false [false] end
   compile() : Array<Instruction> {
-    return this.test.compile().concat([I.JUMPZ(this.metadata.if_false_branch_label_data)]).concat(this.true_branch.compile()).concat(
-      [I.JUMP(this.metadata.if_end_label_data), I.LABEL(this.metadata.if_false_branch_label_data)]).concat(this.false_branch.compile()).concat(
-        [I.LABEL(this.metadata.if_end_label_data)]);
+    return this.test.compile().concat([I.JUMPZ(this.attrs.if_false_branch_label_data)]).concat(this.true_branch.compile()).concat(
+      [I.JUMP(this.attrs.if_end_label_data), I.LABEL(this.attrs.if_false_branch_label_data)]).concat(this.false_branch.compile()).concat(
+        [I.LABEL(this.attrs.if_end_label_data)]);
   }
 
 }
@@ -243,11 +213,6 @@ class IfExpression extends ASTNode {
 // Exactly what it sounds like. We have a symbol or anonymous function and the list of arguments.
 class FunctionCall extends ASTNode {
 
-  // Metadata: The result type will be helpful to keep around to know if we are dealing with a closure
-  // or just a regular function call that is going to succeed.
-
-  // There are only three possibilities for what can be the head of the function call:
-  // anonymous function, built-in, or function reference.
   constructor(private func : ASTNode, private args : Array<ASTNode>) { super(); }
 
   // First evaluate the arguments. Push arguments onto the new stack. Push the function/closure
@@ -263,41 +228,20 @@ class FunctionCall extends ASTNode {
     return compiled_args.concat(compiled_func).concat([I.PUSHSTACK({count: this.args.length + 1}), I.APPLY()]);
   }
 
-  // Need to figure out how to keep track of the type, e.g. closure, regular.
-  annotate(context : AnnotationContext) : void {
-    this.args.forEach(x => x.annotate(context));
-    var func_call_context = context.increment();
-    func_call_context.increment_stack_number();
-    this.func.annotate(func_call_context);
-  }
-
 }
 
 // Anonymous function is just a set of arguments which need to be symbols and a body.
 class AnonymousFunction extends ASTNode {
-
-  // Metadata: Argument count is important and also what the return type will be?
 
   constructor(private args : Array<Symbol>, private body : FunctionBody) { super(); }
 
   // Mark the starting point for the function. Compile the instructions. Make a function object
   // that points at the starting label as the code start point.
   compile() : Array<Instruction> {
-    return [I.LABEL(this.metadata.anonymous_func_starting_label),
-      I.MKFUNC(this.metadata.anonymous_func_mkfunc_data)].concat(
+    return [I.LABEL(this.attrs.anonymous_func_starting_label),
+      I.MKFUNC(this.attrs.anonymous_func_mkfunc_data)].concat(
         I.ARGCHECK({count: this.args.length})).concat(this.body.compile()).concat(
-          [I.RETURN(), I.LABEL(this.metadata.anonymous_func_ending_label)]);
-  }
-
-  // Generate the label and then increment the context and annotate the arguments and body in that context.
-  // Incrementing the context because we want to mimic the scoping rules of the language.
-  annotate(context : AnnotationContext) : void {
-    this.metadata.anonymous_function_annotation(context);
-    //this.starting_label = context.get_label();
-    //this.ending_label = this.starting_label + 'end';
-    var body_context = context.increment();
-    this.args.forEach(x => x.annotate(body_context));
-    this.body.annotate(body_context);
+          [I.RETURN(), I.LABEL(this.attrs.anonymous_func_ending_label)]);
   }
 
 }
@@ -305,25 +249,16 @@ class AnonymousFunction extends ASTNode {
 // A wrapper around a generic ASTNode.
 class FunctionBody extends ASTNode {
 
-  // Metadata: Not sure what I need here other than maybe the return type.
-
   constructor(private exprs : ASTNode) { super(); }
 
   compile() : Array<Instruction> {
     return this.exprs.compile();
   }
 
-  // Just recurse. Not sure if correct.
-  annotate(context : AnnotationContext) : void {
-    this.exprs.annotate(context);
-  }
-
 }
 
 // Introduces a set of bindings in pairs: <var expr> <var expr> ...
 class LetExpressions extends ASTNode {
-
-  // Metadata: Count of bindings and the resulting body type.
 
   constructor(private bindings : Array<BindingPair>, private body : ASTNode) { super(); }
 
@@ -336,35 +271,17 @@ class LetExpressions extends ASTNode {
     return compiled_bindings.concat(this.body.compile());
   }
 
-  // Let expressions introduce a new scope and hence a new context. We annotate the bindings in the new
-  // context and then annotate the body in that context.
-  annotate(context : AnnotationContext) : void {
-    var let_context = context.increment();
-    this.bindings.forEach(binding => binding.annotate(let_context));
-    this.body.annotate(let_context);
-  }
-
 }
 
 // The actual binding pair that appears in let expressions.
 class BindingPair extends ASTNode {
 
-  // Metadata: TODO.
-
   constructor(private variable : Symbol, private value : ASTNode) { super(); }
 
   // Compile the variable. Compile the value. Perform the assignment.
   compile() : Array<Instruction> {
-    var var_location = this.variable.get_stack_location();
+    var var_location = this.variable.attrs.stack_location;
     return [I.INITVAR({var_location: var_location})].concat(this.value.compile()).concat([I.STOREA({store_location: var_location})]);
-  }
-
-  // Recursively annotate the variable and the value it corresponds to. This means no forward references.
-  // If we annotate all the variables ahead of all the values then both forward and backward references will be
-  // allowed.
-  annotate(context : AnnotationContext) : void {
-    this.variable.annotate(context);
-    this.value.annotate(context);
   }
 
 }
@@ -372,18 +289,10 @@ class BindingPair extends ASTNode {
 // Pattern matching.
 class MatchExpression extends ASTNode {
 
-  // Metadata: TODO:
-
   constructor(private value : ASTNode, private patterns : Array<PatternPair>) { super(); }
 
   compile() : Array<Instruction> {
     throw new Error();
-  }
-
-  // Each pattern gets annotated in a different context because patterns can introduce bindings.
-  annotate(context : AnnotationContext) : void {
-    this.value.annotate(context);
-    this.patterns.forEach(p => { var pattern_context = context.increment(); p.annotate(pattern_context); });
   }
 
 }
@@ -391,19 +300,10 @@ class MatchExpression extends ASTNode {
 // Like let expressions but this time we have pattern matching pairs.
 class PatternPair extends ASTNode {
 
-  // Metadata: TODO.
-
   constructor(private pattern : ASTNode, private expression : ASTNode) { super(); }
 
   compile() : Array<Instruction> {
     throw new Error();
-  }
-
-  // A match expression introduces a new context for each pattern so we don't need to increment the context
-  // here. We can just annotate.
-  annotate(context : AnnotationContext) : void {
-    this.pattern.annotate(context);
-    this.expression.annotate(context);
   }
 
 }
