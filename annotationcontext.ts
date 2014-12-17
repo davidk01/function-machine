@@ -1,3 +1,17 @@
+class VariableMap {
+
+  constructor(private vars : { [str : string] : Symbol }) { }
+
+  get(variable : string) : Symbol {
+    return this.vars[variable];
+  }
+
+  set(variable : string, node : Symbol) {
+    this.vars[variable] = node;
+  }
+
+}
+
 class AnnotationContext {
 
   // Location of the latest variable declaration.
@@ -17,7 +31,7 @@ class AnnotationContext {
     if (!this.up) {
       this.variables = ContextBuiltins;
     } else {
-      this.variables = {};
+      this.variables = new VariableMap({});
     }
     this.label_number = (this.up && this.up.get_label_number()) || -1;
     this.latest_location = (this.up && this.up.get_latest_location()) || 0;
@@ -25,11 +39,11 @@ class AnnotationContext {
   }
 
   has_variable(variable : Symbol) : boolean {
-    return !!(this.variables[variable.symb] || (this.up && this.up.has_variable(variable)));
+    return !!this.get_variable(variable);
   }
 
   get_variable(variable : Symbol) : Symbol {
-    return this.variables[variable.symb] || (this.up && this.up.get_variable(variable));
+    return this.variables.get(variable.symb) || (this.up && this.up.get_variable(variable));
   }
 
   get_label_number() : number {
@@ -43,7 +57,7 @@ class AnnotationContext {
 
   add_variable(name : string, node : Symbol) : void {
     this.latest_location += 1;
-    this.variables[name] = node;
+    this.variables.set(name, node);
   }
 
   get_latest_location() : number {

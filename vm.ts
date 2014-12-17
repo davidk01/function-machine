@@ -1,11 +1,33 @@
-/// <reference path="interfaces.d.ts" />
-
 // Builtin functions
 enum Builtins {
   PLUS
 }
 
 interface InstructionArgs { }
+
+class ArgCheckArguments implements InstructionArgs {
+  
+  constructor() { }
+
+}
+
+class PushStackArguments implements InstructionArgs {
+
+  constructor(public count : number) { }
+
+}
+
+class JumpArguments implements InstructionArgs {
+
+  constructor(public label : string) { }
+
+}
+
+class LoadArguments implements InstructionArgs {
+
+  constructor(public constant : number) { }
+
+}
 
 class Instruction { 
 
@@ -16,7 +38,7 @@ class Instruction {
   // Load a variable from the stack location specified by stack number. We figure this stuff out
   // statically during typechecking/AST annotation phase.
   static LOADVAR(args : StackLocation) {
-    if (this.is_null(args.stack && args.stack_location)) {
+    if (this.is_null(args.stack_number && args.stack_location)) {
       throw new Error('Must provide stack and stack location.');
     }
     return new Instruction('loadvar', args);
@@ -24,7 +46,7 @@ class Instruction {
 
   // Checks the stack argument count to make sure the function can be applied.
   // In case there aren't enough arguments we need to return a closure.
-  static ARGCHECK(args : ArgCheckArgument) {
+  static ARGCHECK(args : ArgCheckArguments) {
     return new Instruction('argcheck', args);
   }
 
@@ -34,7 +56,7 @@ class Instruction {
   }
 
   // Push 'n' number of variables onto a new stack.
-  static PUSHSTACK(args : PushStackArgument) {
+  static PUSHSTACK(args : PushStackArguments) {
     if (this.is_null(args.count)) {
       throw new Error('Must provide number of elements to push onto new stack.');
     }
@@ -47,7 +69,7 @@ class Instruction {
   }
 
   // Jump if zero.
-  static JUMPZ(args : JumpArgument) {
+  static JUMPZ(args : JumpArguments) {
     if (this.is_null(args.label)) {
       throw new Error('Must provide jump label.');
     }
@@ -55,7 +77,7 @@ class Instruction {
   }
 
   // Unconditional jump.
-  static JUMP(args : JumpArgument) {
+  static JUMP(args : JumpArguments) {
     if (this.is_null(args.label)) {
       throw new Error('Must provide jump label.');
     }
@@ -63,7 +85,7 @@ class Instruction {
   }
 
   // Load a constant.
-  static LOAD(constant : LoadArgument) {
+  static LOAD(constant : LoadArguments) {
     if (this.is_null(constant.constant)) {
       throw new Error('Must provide constant.');
     }
@@ -76,30 +98,30 @@ class Instruction {
   }
 
   // Initialize a variable on top of stack. Basically a null pointer.
-  static INITVAR(args : InitVarArgument) {
-    if (this.is_null(args.var_location)) {
+  static INITVAR(args : StackLocation) {
+    if (this.is_null(args.stack_number && args.stack_location)) {
       throw new Error('Must provide location for variable initialization.');
     }
     return new Instruction('initvar', args);
   }
 
   // Store whatever is on top of the stack at the given location on the stack.
-  static STOREA(args : StoreArgument) {
-    if (this.is_null(args.store_location)) {
+  static STOREA(args : StackLocation) {
+    if (this.is_null(args.stack_number && args.stack_location)) {
       throw new Error('Must provide store location.');
     }
     return new Instruction('storea', args);
   }
 
   // Label for jumps.
-  static LABEL(args : JumpArgument) {
+  static LABEL(args : JumpArguments) {
     if (this.is_null(args.label)) {
       throw new Error('Must provide label.');
     }
     return new Instruction('label', args);
   }
 
-  static MKFUNC(args : MkfuncArgument) {
+  static MKFUNC(args : MkFuncData) {
     if (this.is_null(args.label && args.argument_count)) {
       throw new Error('Missing parameters for MKFUNC.');
     }

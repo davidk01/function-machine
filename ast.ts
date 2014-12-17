@@ -3,31 +3,53 @@
 // Top of syntax tree hierarchy.
 var I = Instruction;
 
-interface AttributeMap { }
+class LoadVarData {
+  
+  constructor() { }
+
+}
+
+class LabelData {
+
+  constructor(public label : string) { }
+
+}
+
+class MkFuncData {
+
+  constructor(public label : string, public argument_count : number) { }
+
+}
+
+class StackLocation {
+
+  constructor(public stack_number : number, public stack_location : number) { }
+
+}
 
 class Attributes {
 
-  constructor(private attrs : Array<string>) { }
+  private attrs : { [n : string] : any };
 
-  generate(node : ASTNode, context : AnnotationContext) : AttributeMap {
-    return node.annotation_visitor(this, context);
+  constructor() {
+    this.attrs = {};
   }
 
   get_stack_data() : StackLocation {
     throw new Error();
   }
 
-  if_false_branch_label_data : JumpArgument;
+  if_false_branch_label_data : LabelData;
 
-  if_end_label_data : JumpArgument;
+  if_end_label_data : LabelData;
 
-  anonymous_func_starting_label : JumpArgument;
+  anonymous_func_starting_label : LabelData;
 
-  anonymous_func_ending_label : JumpArgument;
+  anonymous_func_mkfunc_data : MkFuncData;
 
-  anonymous_func_mkfunc_data : MkfuncArgument;
+  anonymous_func_ending_label : LabelData;
 
-  stack_location : number;
+  stack_location : StackLocation;
 
 }
 
@@ -40,16 +62,12 @@ class ASTNode {
 
   symbol() : boolean { return false; }
 
-  annotate(context : AnnotationContext) : AttributeMap {
-    return this.attrs.generate(this, context);
-  }
-
-  annotation_visitor(attrs : Attributes, context : AnnotationContext) : AttributeMap {
-    throw new Error('Must be defined in subclass.');
-  }
-
   compile() : Array<Instruction> {
     throw new Error('Should never happen.');
+  }
+
+  annotate(context : AnnotationContext) {
+    throw new Error();
   }
 
 }
@@ -80,9 +98,9 @@ class Symbol extends ASTNode {
 
 }
 
-var ContextBuiltins : BuiltinMap = {
-    '+': new Symbol('+')
-}
+var ContextBuiltins : VariableMap = new VariableMap({
+  '+': new Symbol('+')
+});
 
 // List the data not the s-expression.
 class List extends ASTNode {
@@ -281,7 +299,7 @@ class BindingPair extends ASTNode {
   // Compile the variable. Compile the value. Perform the assignment.
   compile() : Array<Instruction> {
     var var_location = this.variable.attrs.stack_location;
-    return [I.INITVAR({var_location: var_location})].concat(this.value.compile()).concat([I.STOREA({store_location: var_location})]);
+    return [I.INITVAR(var_location)].concat(this.value.compile()).concat([I.STOREA(var_location)]);
   }
 
 }
