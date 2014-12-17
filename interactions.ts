@@ -67,8 +67,6 @@ function ast_input() {
 function compile_input() {
   var refined_ast = ast_input();
   // Need to annotate before compiling.
-  var context = new AnnotationContext(null);
-  refined_ast.forEach((x, index) => x.annotate(context));
   var compiled = refined_ast.map(x => {
     console.log('Compiling: ' + JSON.stringify(x));
     return x.compile();

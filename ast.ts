@@ -35,10 +35,6 @@ class ASTNode {
     throw new Error('Should never happen.');
   }
 
-  annotate(context : AnnotationContext) {
-    throw new Error();
-  }
-
 }
 
 // Number.
