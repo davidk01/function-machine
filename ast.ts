@@ -56,8 +56,6 @@ class Attributes {
 // Top of AST hierarchy.
 class ASTNode { 
 
-  attrs : Attributes;
-
   refine() : ASTNode { return this; }
 
   symbol() : boolean { return false; }
@@ -121,6 +119,18 @@ class Tuple extends ASTNode {
   compile() : Array<Instruction> {
     throw new Error();
   }
+
+}
+
+class FunctionApplication extends ASTNode {
+
+  constructor(private func : AnonymousFunction, private args : Array<ASTNode>, public attrs : { arg_count : number }) { super(); }
+
+}
+
+class ClosureApplication extends ASTNode {
+
+  constructor(private func : FunctionApplication, private args : Array<ASTNode>, public attrs : { arg_count : number }) { super(); }
 
 }
 
@@ -198,7 +208,7 @@ class SExpr extends ASTNode {
     if (this.head.symbol()) {
       switch((<Symbol>this.head).symb) {
         case 'fun': // function definition
-          return new AnonymousFunction((<SExpr>this.tail[0]).refine_argument_definitions(), new FunctionBody(this.tail[1].refine()));
+          return null;
         case 'let': // let binding
           return new LetExpressions((<SExpr>this.tail[0]).refine_let_bindings(), this.tail[1].refine());
         case 'match': // pattern matching
@@ -251,7 +261,7 @@ class FunctionCall extends ASTNode {
 // Anonymous function is just a set of arguments which need to be symbols and a body.
 class AnonymousFunction extends ASTNode {
 
-  constructor(private args : Array<Symbol>, private body : FunctionBody) { super(); }
+  constructor(private args : Array<Symbol>, private body : FunctionBody, public attrs : { arg_count : number }) { super(); }
 
   // Mark the starting point for the function. Compile the instructions. Make a function object
   // that points at the starting label as the code start point.
