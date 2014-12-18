@@ -105,9 +105,14 @@ class IfExpression extends ASTNode {
   // Nothing too fancy. Just some labels and jumps.
   // [test] jumpz(false) [true] jump(end) false [false] end
   compile() : Array<Instruction> {
-    return this.test.compile().concat([I.JUMPZ(this.attrs.if_false_branch_label_data)]).concat(this.true_branch.compile()).concat(
-      [I.JUMP(this.attrs.if_end_label_data), I.LABEL(this.attrs.if_false_branch_label_data)]).concat(this.false_branch.compile()).concat(
-        [I.LABEL(this.attrs.if_end_label_data)]);
+    var comiled_test = this.test_compile();
+    var compiled_true_branch = this.true_branch.compile();
+    var compiled_false_branch = this.false_branch.compile();
+    var end_label = this.attrs.end_label;
+    var false_branch_label = this.attrs.false_branch_label;
+    var code = compiled_test.concat(I.JUMPZ(false_branch_label)).concat(compiled_true_branch).concat(
+      I.JUMP(end_label), I.LABEL(false_branch_label)).concat(compiled_false_branch).concat(I.LABEL(end_label));
+    return code;
   }
 
 }
