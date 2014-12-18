@@ -1,4 +1,4 @@
-interface StackValue { 
+interface StackVal { 
   type: RefType;
   address: number;
 }
@@ -37,7 +37,7 @@ class Stack {
     return Stack.builtins[builtin_location];
   }
 
-  get_variable(args : StackLocation) : StackValue {
+  get_variable(args : StackLocation) : StackVal {
     if (args.stack == -1) { // Working with builtins
       return this.get_builtin(args.stack_location);
     }
@@ -55,16 +55,16 @@ class Stack {
     return new Stack(this, this.level + 1);
   }
 
-  unshift(val : StackValue) : void {
+  unshift(val : StackVal) : void {
     this.stack.unshift(val);
   }
 
   // Just push a constant on the stack. Constants for now are just ints.
-  push(val : StackValue) : void {
+  push(val : StackVal) : void {
     this.stack.push(val);
   }
 
-  pop() : StackValue {
+  pop() : StackVal {
     return this.stack.pop();
   }
 

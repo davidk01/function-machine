@@ -16,8 +16,6 @@ class HeapRef {
 
 }
 
-interface HeapValValue { }
-
 // Heap references point to heap values.
 class HeapVal {
 
@@ -68,7 +66,7 @@ class Heap {
   }
 
   // Dereference a heap reference.
-  get_ref(ref : StackValue) : HeapVal {
+  get_ref(ref : StackVal) : HeapVal {
     return this.heap[ref.address];
   }
 

@@ -3,6 +3,12 @@
 /// <reference path="stack.ts" />
 /// <reference path="builtins.ts" />
 
+interface LabelMap {
+
+  [label : string] : CodeAddress;
+
+}
+
 // What runs our code.
 class VM {
 
@@ -27,7 +33,7 @@ class VM {
   // Take the instructions and initialize the program counter, the initial stack, heap, etc.
   constructor(private instructions : Array<Instruction>) {
     this.pc = 0;
-    this.stack = new Stack(null, 0);
+    this.stack = new Stack(0);
     this.heap = new Heap();
     this.label_map = {};
     this.returns = [];
@@ -40,14 +46,14 @@ class VM {
 
   // Push top of stack onto previous stack, reset stack, and pc.
   ret() : void {
-    var return_value : StackValue = this.stack.pop();
+    var return_value : StackVal = this.stack.pop();
     this.stack = this.stack.up;
     this.stack.push(return_value);
     this.pc = this.returns.pop();
   }
 
-  // Dereference whatever is passed in.
-  deref(ref : StackValue) : HeapVal {
+  // Dereference a stack value.
+  deref(ref : StackVal) : HeapVal {
     return this.heap.get_ref(ref);
   }
 
@@ -59,7 +65,7 @@ class VM {
     for (var i = 0; i < this.instructions.length; i++) {
       var instruction = this.instructions[i];
       var args : InstructionArgs = instruction.args;
-      if (instruction.instruction == 'label' &&
+      if (instruction.instruction === 'label' &&
         this.is_not_null(args) && args.label && args.label == label) {
           this.label_map[label] = i;
           return i;

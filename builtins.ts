@@ -2,11 +2,11 @@ function generate_builtins() {
   var builtins : HeapMap = {};
   // PLUS
   var plus = function(vm : VM) : void {
-    var arg1_ref : StackValue = vm.stack.pop();
+    var arg1_ref : StackVal = vm.stack.pop();
     if (!(arg1_ref.type == RefType.BASIC)) {
       throw new Error('First argument type must be basic.');
     }
-    var arg2_ref : StackValue = vm.stack.pop();
+    var arg2_ref : StackVal = vm.stack.pop();
     if (!(arg1_ref.type == RefType.BASIC)) {
       throw new Error('Second argument type must be basic.');
     }
