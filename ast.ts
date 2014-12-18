@@ -58,7 +58,8 @@ class Symbol extends ASTNode {
 
   // Load a variable accounting for stack nesting and stack location on that stack level.
   compile() : Array<Instruction> {
-    return [I.LOADVAR(this.attrs.get_stack_data())];
+    var stack_data = this.attrs.stack_data;
+    return [I.LOADVAR(stack_data)];
   }
 
 }
@@ -126,13 +127,12 @@ class FunctionCall extends ASTNode {
   // reference. Call the function.
   // arg1 arg2 ... argN pushstack(N) func-reference apply(N)
   compile() : Array<Instruction> {
-    console.log('Compiling function call: ', this.func);
-    var compiled_args = this.args.reduce((previous : Array<Instruction>, current : ASTNode, index : number, args : Array<ASTNode>) => {
+    var compiled_args = this.args.reduce((previous : Array<Instruction>, current : ASTNode) => {
       return previous.concat(current.compile());
     }, []);
     var compiled_func = this.func.compile();
     // We push an extra argument because the last argument is going to be the reference to the function we want to apply.
-    return compiled_args.concat(compiled_func).concat([I.PUSHSTACK({count: this.args.length + 1}), I.APPLY()]);
+    return compiled_args.concat(compiled_func).concat(I.PUSHSTACK({count: this.args.length + 1}), I.APPLY());
   }
 
 }
@@ -145,10 +145,13 @@ class AnonymousFunction extends ASTNode {
   // Mark the starting point for the function. Compile the instructions. Make a function object
   // that points at the starting label as the code start point.
   compile() : Array<Instruction> {
-    return [I.LABEL(this.attrs.anonymous_func_starting_label),
-      I.MKFUNC(this.attrs.anonymous_func_mkfunc_data)].concat(
-        I.ARGCHECK({count: this.args.length})).concat(this.body.compile()).concat(
-          [I.RETURN(), I.LABEL(this.attrs.anonymous_func_ending_label)]);
+    var starting_label = this.attrs.starting_label;
+    var mkfunc_data = this.attrs.mkfunc_data;
+    var arg_count = this.attrs.arg_count;
+    var compiled_body = this.body.compile();
+    var ending_label = this.attrs.ending_label;
+    return [I.LABEL(starting_label), I.MKFUNC(mkfunc_data)].concat(I.ARGCHECK(arg_count)).concat(
+      this.body.compile()).concat(I.RETURN(), I.LABEL(ending_label));
   }
 
 }
@@ -171,11 +174,11 @@ class LetExpressions extends ASTNode {
 
   // Compile the bindings. Compile the body. Stick them together.
   compile() : Array<Instruction> {
-    var compiled_bindings = this.bindings.reduce((previous : Array<Instruction>,
-      current : BindingPair, index : number, bindings : Array<BindingPair>) => {
+    var compiled_body = this.body.compile();
+    var compiled_bindings = this.bindings.reduce((previous : Array<Instruction>, current : BindingPair) => {
         return previous.concat(current.compile());
     }, []);
-    return compiled_bindings.concat(this.body.compile());
+    return compiled_bindings.concat(compiled_body);
   }
 
 }
@@ -188,7 +191,8 @@ class BindingPair extends ASTNode {
   // Compile the variable. Compile the value. Perform the assignment.
   compile() : Array<Instruction> {
     var var_location = this.variable.attrs.stack_location;
-    return [I.INITVAR(var_location)].concat(this.value.compile()).concat([I.STOREA(var_location)]);
+    var compiled_value = this.value.compile();
+    return [I.INITVAR(var_location)].concat(compiled_value).concat(I.STOREA(var_location));
   }
 
 }
