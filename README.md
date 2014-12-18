@@ -1,4 +1,4 @@
-The goal isn't to do anything tricky with syntax and grammars so we focus on just using/parsing s-expressions and then doing the required transformations starting from s-expressions. The syntax in the book is
+The goal isn't to do anything tricky with syntax and grammars so we focus on just using/parsing s-expressions. The syntax in the book is
 
     e ::= b | x | op e | e op e |
       (if e then e else e) | (e e ... e) |
@@ -8,7 +8,7 @@ The goal isn't to do anything tricky with syntax and grammars so we focus on jus
 the equivalent s-expressions just collapse into basic forms/symbols and lists
 
     s-expr ::= val | sym | (sym s-expr) | (let (sym s-expr sym s-expr ...) s-expr) |
-      (lambda (sym sym ...) s-expr)
+      (fun (sym sym ...) s-expr) | (if s-expr s-expr s-expr)
 
 I don't see any reason to split `let` into two cases (recursive/non-recursive) so will revisit this later when it becomes an issue.
 
