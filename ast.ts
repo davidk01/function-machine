@@ -106,7 +106,7 @@ class IfExpression extends ASTNode {
   // Nothing too fancy. Just some labels and jumps.
   // [test] jumpz(false) [true] jump(end) false [false] end
   compile() : Array<Instruction> {
-    var comiled_test = this.test_compile();
+    var compiled_test = this.test.compile();
     var compiled_true_branch = this.true_branch.compile();
     var compiled_false_branch = this.false_branch.compile();
     var end_label = this.attrs.end_label;
