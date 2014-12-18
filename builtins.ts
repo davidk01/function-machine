@@ -16,6 +16,7 @@ function generate_builtins() {
     vm.stack.push(sum_ref);
     return vm.ret();
   }
-  builtins[Builtins.PLUS] = new HeapRef(RefType.BUILTIN, plus);
+  builtins['+'] = new HeapRef(RefType.BUILTIN, plus);
+  // builtins[Builtins.PLUS] = new HeapRef(RefType.BUILTIN, plus);
   return builtins;
 }

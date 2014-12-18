@@ -49,6 +49,16 @@ class G {
       return new ClosureApplication(applied_func, args, {arg_count: applied_func.attrs.arg_count - args.length});
     });
 
+  // (if s-expr s-expr s-expr).
+  static if_expression : Parser = G.lparen.then(Parser.m(x => x.characters === 'if')).then(
+    Parser.delay(x => G.s_expr)).then(Parser.delay(x => G.s_expr)).then(Parser.delay(x => G.s_expr)).then(
+      G.rparen).transformer((x) : IfExpression => {
+        var test = x[2];
+        var true_branch = x[3];
+        var false_branch = x[4];
+        return new IfExpression(test, true_branch, false_branch, {});
+      });
+
   // < Left angle bracket.
   static langle : Parser = Parser.m(x => x.type === TokenType.LANGLE);
 
@@ -99,7 +109,8 @@ class G {
 
   // Atomic expressions: empty list | symbol | number.
   static atomic : Parser = G.non_empty_data_list.or(G.empty_data_list).or(G.tuple).or(
-    G.num).or(G.anonymous_func).or(G.func_application).or(G.let_expression).or(G.closure).or(G.symb);
+    G.num).or(G.anonymous_func).or(G.if_expression).or(G.func_application).or(
+      G.let_expression).or(G.closure).or(G.symb);
 
   // Non-empty list: (atomic s-expr*). This is just here while I work out the syntax.
   static list : Parser = G.lparen.then(G.atomic).then(
