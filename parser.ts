@@ -6,6 +6,13 @@
 // parser combinator grammar.
 class G {
   
+  // Matches the given word.
+  static word(w : string) : Parser {
+    return Parser.m(x => x.characters === w);
+  }
+
+  static delayed_sexpr : Parser = Parser.delay(x => G.s_expr);
+
   // Number token.
   static num : Parser = Parser.m(x => x.type === TokenType.NUMBER).transformer(
     (x : Token) : Num => new Num(parseInt(x.characters), {}));
@@ -26,33 +33,32 @@ class G {
   });
 
   // (fun (sym sym sym) s-expr).
-  static anonymous_func : Parser = G.lparen.then(Parser.m(x => x.characters === 'fun')).then(
-    G.symbol_list).then(Parser.delay(x => G.s_expr)).then(G.rparen).transformer((x) : AnonymousFunction => {
+  static anonymous_func : Parser = G.lparen.then(G.word('fun')).then(G.symbol_list).then(
+    G.delayed_sexpr).then(G.rparen).transformer((x) : AnonymousFunction => {
       var args = x[2];
       var body = x[3];
       return new AnonymousFunction(args, body, {arg_count: args.length});
     });
 
   // ((fun ...) s-expr*).
-  static func_application : Parser = G.lparen.then(G.anonymous_func).then(
-    Parser.delay(x => G.s_expr.zero_or_more())).then(G.rparen).transformer((x) : FunctionApplication => {
+  static func_application : Parser = G.lparen.then(G.anonymous_func).then(G.delayed_sexpr.zero_or_more()).then(
+    G.rparen).transformer((x) : FunctionApplication => {
       var func = x[1];
       var args = x[2];
       return new FunctionApplication(func, args, {arg_count: func.attrs.arg_count - args.length});
     });
 
   // (applied-func s-expr*).
-  static closure : Parser = G.lparen.then(G.func_application).then(
-    Parser.delay(x => G.s_expr.zero_or_more())).then(G.rparen).transformer((x) : ClosureApplication => {
+  static closure : Parser = G.lparen.then(G.func_application).then(G.delayed_sexpr.zero_or_more()).then(
+    G.rparen).transformer((x) : ClosureApplication => {
       var applied_func = x[1];
       var args = x[2];
       return new ClosureApplication(applied_func, args, {arg_count: applied_func.attrs.arg_count - args.length});
     });
 
   // (if s-expr s-expr s-expr).
-  static if_expression : Parser = G.lparen.then(Parser.m(x => x.characters === 'if')).then(
-    Parser.delay(x => G.s_expr)).then(Parser.delay(x => G.s_expr)).then(Parser.delay(x => G.s_expr)).then(
-      G.rparen).transformer((x) : IfExpression => {
+  static if_expression : Parser = G.lparen.then(G.word('if')).then(G.delayed_sexpr).then(
+    G.delayed_sexpr).then(G.delayed_sexpr).then(G.rparen).transformer((x) : IfExpression => {
         var test = x[2];
         var true_branch = x[3];
         var false_branch = x[4];
@@ -72,8 +78,8 @@ class G {
   static rbracket : Parser = Parser.m(x => x.type === TokenType.RBRACKET);
 
   // Tuple: <s-expr, ..., s-expr>.
-  static tuple : Parser = G.langle.then(Parser.delay(x => G.s_expr)).then(
-    Parser.delay(x => G.s_expr.zero_or_more())).then(G.rangle).transformer((x : Array<any>) : Tuple => {
+  static tuple : Parser = G.langle.then(G.delayed_sexpr).then(G.delayed_sexpr.zero_or_more()).then(
+    G.rangle).transformer((x : Array<any>) : Tuple => {
       return new Tuple([x[1]].concat(x[2]), {});
     });
 
@@ -81,24 +87,23 @@ class G {
   static pattern : Parser = Parser.delay(x => G.s_expr);
 
   // <pattern s-expr>.
-  static binding_pair : Parser = G.langle.then(G.pattern).then(Parser.delay(x => G.s_expr)).then(
-    G.rangle).transformer((x) : BindingPair => {
+  static binding_pair : Parser = G.langle.then(G.pattern).then(G.delayed_sexpr).then(G.rangle).transformer((x) : BindingPair => {
       var variable = x[1];
       var value = x[2];
       return new BindingPair(variable, value, {});
     });
 
   // (let <var s-expr>* s-expr).
-  static let_expression : Parser = G.lparen.then(Parser.m(x => x.characters === 'let')).then(
-    G.binding_pair.many()).then(Parser.delay(x => G.s_expr)).then(G.rparen).transformer((x) : LetExpressions => {
+  static let_expression : Parser = G.lparen.then(G.word('let')).then(G.binding_pair.many()).then(
+    G.delayed_sexpr).then(G.rparen).transformer((x) : LetExpressions => {
       var binding_pairs = x[2];
       var body = x[3];
       return new LetExpressions(binding_pairs, body, {});
     });
     
   // List: [s-expr, ..., s-expr].
-  static non_empty_data_list : Parser = G.lbracket.then(Parser.delay(x => G.s_expr)).then(
-    Parser.delay(x => G.s_expr.zero_or_more())).then(G.rbracket).transformer((x : Array<any>) : List => {
+  static non_empty_data_list : Parser = G.lbracket.then(G.delayed_sexpr).then(G.delayed_sexpr.zero_or_more()).then(
+    G.rbracket).transformer((x : Array<any>) : List => {
       return new List([x[1]].concat(x[2]), {});
     });
 
@@ -108,14 +113,13 @@ class G {
   });
 
   // Atomic expressions: empty list | symbol | number.
-  static atomic : Parser = G.non_empty_data_list.or(G.empty_data_list).or(G.tuple).or(
-    G.num).or(G.anonymous_func).or(G.if_expression).or(G.func_application).or(
+  static atomic : Parser = G.non_empty_data_list.or(G.empty_data_list).or(G.tuple).or(G.num).or(
+    G.anonymous_func).or(G.if_expression).or(G.func_application).or(
       G.let_expression).or(G.closure).or(G.symb);
 
   // Non-empty list: (atomic s-expr*). This is just here while I work out the syntax.
-  static list : Parser = G.lparen.then(G.atomic).then(
-    Parser.delay(x => G.s_expr.zero_or_more())).then(G.rparen).transformer((x) : Array<ASTNode> => {
-      throw new Error('Should not happen.');
+  static list : Parser = G.lparen.then(G.atomic).then(G.delayed_sexpr.zero_or_more()).then(
+    G.rparen).transformer((x) : Array<ASTNode> => {
       return [x[1]].concat(x[2]);
     });
 
