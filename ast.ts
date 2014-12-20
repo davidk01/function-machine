@@ -86,6 +86,12 @@ class Tuple extends ASTNode {
 
 }
 
+class BuiltinFunctionApplication extends ASTNode {
+
+  constructor(private name : string, private args : Array<ASTNode>, public attrs : any) { super(); }
+
+}
+
 class FunctionApplication extends ASTNode {
 
   constructor(private func : AnonymousFunction, private args : Array<ASTNode>, public attrs : { arg_count : number }) { super(); }

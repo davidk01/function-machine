@@ -11,7 +11,13 @@ class G {
     return Parser.m(x => x.characters === w);
   }
 
-  // Comes up often enough.
+  // Matches any one of a set of words.
+  static word_set(...args : Array<string>) : Parser {
+    var parser = args.map(word => G.word(word)).reduce((previous, current) => previous.or(current));
+    return parser.transformer(x => x.characters);
+  }
+
+  // Comes up often enough so might as well name it.
   static delayed_sexpr : Parser = Parser.delay(x => G.s_expr);
 
   // Another common operation: ( p )
@@ -59,6 +65,17 @@ class G {
       var applied_func = x[1];
       var args = x[2];
       return new ClosureApplication(applied_func, args, {arg_count: applied_func.attrs.arg_count - args.length});
+  });
+
+  // Current set of builtin functions.
+  static builtins : Parser = G.word_set('+', '-', '*', '/', '=', '%', 'lt', 'gt', 'lte', 'gte');
+
+  // We currently single out builtin function application.
+  static builtin : Parser = G.parenthesize(G.builtins.then(G.delayed_sexpr.zero_or_more())).transformer((x) : BuiltinApplication => {
+    var non_parens = x[1];
+    var builtin = non_parens[0];
+    var args = non_parens[1];
+    return new BuiltinFunctionApplication(builtin, args, {});
   });
 
   // (if s-expr s-expr s-expr).
@@ -117,9 +134,9 @@ class G {
     return new List([], {});
   });
 
-  // Atomic expressions: empty list | symbol | number.
+  // Atomic expressions: a bunch of stuff.
   static atomic : Parser = G.non_empty_data_list.or(G.empty_data_list).or(G.tuple).or(G.num).or(
-    G.anonymous_func).or(G.if_expression).or(G.func_application).or(
+    G.builtin).or(G.anonymous_func).or(G.if_expression).or(G.func_application).or(
       G.let_expression).or(G.closure).or(G.symb);
 
   // Non-empty list: (atomic s-expr*). This is just here while I work out the syntax.
