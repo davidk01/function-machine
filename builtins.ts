@@ -10,7 +10,7 @@ function generate_builtins() {
     if (!(arg2_ref.type == RefType.BASIC)) {
       throw new Error('Second argument type must be basic.');
     }
-    var sum_ref : Ref = vm.heap.basic_ref(arg1.value + arg2.value);
+    var sum_ref : Ref = vm.heap.basic_ref(arg1_ref.value + arg2_ref.value);
     vm.stack.push(sum_ref);
     return vm.ret();
   }

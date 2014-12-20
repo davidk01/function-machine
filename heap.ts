@@ -1,46 +1,28 @@
+// All the reference types.
 enum RefType {
-  BASIC, VECTOR, BUILTIN, FUNCTION, CLOSURE
+  REF, BASIC, VECTOR, BUILTIN, FUNCTION, CLOSURE
 }
 
-interface HeapRefValue { }
+// Reference type.
+class Ref {
 
-// An actual heap reference.
-class HeapRef {
-
-  constructor(public type : RefType, public value : HeapRefValue) { }
-
-  repr() : string {
-    var val = typeof this.value == "function" ? "func" : this.value;
-    return "Ref@" + val;
-  }
-
-}
-
-// Heap references point to heap values.
-class HeapVal {
-
+  // Type and value.
   constructor(public type : RefType, public value : any) { }
 
+  // Want a string representation for debugging.
   repr() : string {
-    var t : string;
-    switch(this.type) {
-      case RefType.BASIC:
-        t = "b";
-        break;
-      case RefType.VECTOR:
-        t = "v";
-        break;
-      case RefType.BUILTIN:
-        t = "bi";
-        break;
-      case RefType.FUNCTION:
-        t = "f";
-        break;
-      case RefType.CLOSURE:
-        t = "c";
-        break;
+    var ref_map : { [n : number] : string } = {};
+    ref_map[RefType.REF] = 'R';
+    ref_map[RefType.BASIC] = 'B';
+    ref_map[RefType.VECTOR] = 'V';
+    ref_map[RefType.BUILTIN] = 'I';
+    ref_map[RefType.FUNCTION] = 'F';
+    ref_map[RefType.CLOSURE] = 'C';
+    var repr = ref_map[this.type];
+    if (repr == null || repr == undefined) {
+      throw new Error('Unknown reference type.');
     }
-    return t + ':' + this.value;
+    return ref_map[this.type] + ':' + this.value;
   }
 
 }
@@ -66,35 +48,38 @@ class Heap {
   }
 
   // Dereference a heap reference.
-  get_ref(ref : StackVal) : HeapVal {
-    return this.heap[ref.address];
+  get_ref(ref : Ref) : Ref {
+    if (ref.type == RefType.REF) {
+      return this.heap[ref.value];
+    }
+    throw new Error('Can not de-reference something that is not a reference.');
   }
 
   // One place to do the index incrementing and assignment.
-  private ref_maker(type : RefType, value : HeapVal) {
-    var new_ref : HeapRef = new HeapRef(type, this.current_index);
+  private ref_maker(type : RefType, value : any) : Ref {
+    var new_ref : Ref = new Ref(type, this.current_index);
     this.heap[this.current_index] = value;
     this.current_index += 1;
     return new_ref;
   }
 
   // Generate a function pointer.
-  func_ref(pc : number) : HeapRef {
-    return this.ref_maker(RefType.FUNCTION, new HeapVal(RefType.FUNCTION, pc));
+  func_ref(pc : number) : Ref {
+    return this.ref_maker(RefType.FUNCTION, pc);
   }
 
   // Generate a basic value pointer.
-  basic_ref(val : number) : HeapRef {
-    return this.ref_maker(RefType.BASIC, new HeapVal(RefType.BASIC, val));
+  basic_ref(val : number) : Ref {
+    return this.ref_maker(RefType.BASIC, val);
   }
 
   // Take an array of references and just store them.
-  vector_ref(stack : Array<HeapRef>) : HeapRef {
-    return this.ref_maker(RefType.VECTOR, new HeapVal(RefType.VECTOR, stack));
+  vector_ref(stack : Array<Ref>) : Ref {
+    return this.ref_maker(RefType.VECTOR, stack);
   }
 
-  closure_ref(args : ClosureRef) : HeapRef {
-    return this.ref_maker(RefType.CLOSURE, new HeapVal(RefType.CLOSURE, args));
+  closure_ref(args : ClosureRef) : Ref {
+    return this.ref_maker(RefType.CLOSURE, args);
   }
 
 }
