@@ -3,12 +3,9 @@
 /// <reference path="stack.ts" />
 /// <reference path="builtins.ts" />
 
-// Map allows us to defer the resolution of labels to program points
-// to runtime.
+// Allows us to defer the resolution of labels to program points to runtime.
 interface LabelMap {
-
   [label : string] : CodeAddress;
-
 }
 
 // What runs our code.
@@ -35,7 +32,7 @@ class VM {
   // Take the instructions and initialize the program counter, the initial stack, heap, etc.
   constructor(private instructions : Array<Instruction>) {
     this.pc = 0;
-    this.stack = new Stack(0); // level 0.
+    this.stack = new Stack(null, 0); // no parent, level 0.
     this.heap = new Heap();
     this.label_map = {};
     this.returns = [];
@@ -109,12 +106,12 @@ class VM {
   }
 
   // Generate a basic reference for the given number.
-  basic_ref(val : number) : HeapRef {
+  basic_ref(val : number) : Ref {
     return this.heap.basic_ref(val);
   }
 
   // Generate a function reference with the given program counter.
-  func_ref(pc : number) : HeapRef {
+  func_ref(pc : number) : Ref {
     return this.heap.func_ref(pc);
   }
 
@@ -141,44 +138,36 @@ class VM {
   // Execute the instruction.
   execute() : void {
     var args : InstructionArgs = this.ir.args;
+    console.log(this.ir.instruction);
     switch(this.ir.instruction) {
       case 'load': // Just loads a constant
-        console.log('LOAD: ', args.constant);
         this.stack.push(args.constant);
         break;
       case 'mkbasic': // Make a basic variable reference, ints for the time being
-        console.log('MKBASIC');
         var basic : number = (<number>this.stack.pop());
-        var basic_ref : HeapRef = this.basic_ref(basic);
+        var basic_ref : Ref = this.basic_ref(basic);
         this.stack.push(basic_ref);
         break;
       case 'initvar': // Initialize a variable on the stack at a specific location
-        console.log('INITVAR');
         throw new Error();
         break;
       case 'storea': // Store the top of the stack at the specified address
-        console.log('STOREA');
         throw new Error();
         break;
       case 'label': // noop, just used for resolving jump addresses
-        console.log('LABEL');
         break;
       case 'mkfunc': // Make a function object and push the reference onto the stack
-        console.log('MKFUNC');
-        var func_ref : HeapRef = this.func_ref(this.pc);
+        var func_ref : Ref = this.func_ref(this.pc);
         this.stack.push(func_ref);
         this.pc = this.resolve_label(args.label);
         break;
       case 'jumpz': // Jump if top of stack is zero
-        console.log('JUMPZ');
         throw new Error();
         break;
       case 'jump': // Unconditional jump
-        console.log('JUMP');
         throw new Error();
         break;
       case 'pushstack': // Push specified number of values onto new stack and preserve the order
-        console.log('PUSHSTACK: ', args.count);
         var new_stack : Stack = this.stack.increment();
         for (var i = 0; i < args.count; i++) {
           new_stack.unshift(this.stack.pop());
@@ -186,13 +175,11 @@ class VM {
         this.stack = new_stack;
         break;
       case 'return':
-        console.log('RETURN: ', this.returns[this.returns.length - 1]);
         this.ret();
         break;
       case 'apply': // Apply the function reference on top of stack
-        console.log('APPLY');
         this.returns.push(this.pc);
-        var func_ref : HeapRef = this.stack.pop();
+        var func_ref : Ref = this.stack.pop();
         if (func_ref.type == RefType.BUILTIN) {
           func_ref.value(this);
           return;
@@ -201,30 +188,28 @@ class VM {
           this.pc = destination;
           return;
         } else if (func_ref.type == RefType.CLOSURE) {
-          var closure : ClosureRef = this.deref(func_ref).value;
+          var closure : Ref = this.deref(func_ref).value;
           var pc : number = closure.pc;
-          var closure_args : Array<HeapRef> = this.deref(closure.arg_vector).value;
+          var closure_args : Array<Ref> = this.deref(closure.arg_vector).value;
           this.stack.stack = closure_args.concat(this.stack.stack);
           this.pc = pc;
           return;
         }
         throw new Error('Can not apply non-function reference.');
       case 'argcheck':
-        console.log('ARGCHECK: ', args.count);
         // happy case. don't need to do anything.
         if (args.count === this.stack_length()) {
           return;
         }
         // we have less arguments than we need so need to generate closure
         if (args.count > this.stack_length()) {
-          var vector_ref : HeapRef = this.vector_ref(this.stack.stack);
+          var vector_ref : Ref = this.vector_ref(this.stack.stack);
           this.reset();
           this.stack.push(this.closure_ref(vector_ref, this.pc - 1));
           this.ret();
         }
         break;
       case 'loadvar': // Load a variable from a specific stack and location
-        console.log('LOADVAR: ', args.stack, args.stack_location);
         this.stack.push(this.stack.get_variable(args));
         break;
       default:
