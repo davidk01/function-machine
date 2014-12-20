@@ -1,8 +1,3 @@
-interface StackVal { 
-  type: RefType;
-  address: number;
-}
-
 // Stack, wraps an array and exposes some basic operations.
 class Stack {
 
@@ -33,11 +28,13 @@ class Stack {
     return this.current_repr();
   }
 
+  // Builtins sit in a map indexed by an enum with a special stack number.
   get_builtin(builtin_location : number) {
     return Stack.builtins[builtin_location];
   }
 
-  get_variable(args : StackLocation) : StackVal {
+  // Need stack number and stack location to reference a variable.
+  get_variable(args : StackLocation) : Ref {
     if (args.stack == -1) { // Working with builtins
       return this.get_builtin(args.stack_location);
     }
@@ -46,6 +43,7 @@ class Stack {
     } else if (args.stack > this.level) {
       throw new Error('Can not load from a future stack level, yet.');
     } else {
+      // Level doesn't match so recurse.
       return this.up.get_variable(args);
     }
   }
@@ -55,19 +53,22 @@ class Stack {
     return new Stack(this, this.level + 1);
   }
 
-  unshift(val : StackVal) : void {
+  // Push an element to the front of the stack.
+  unshift(val : Ref) : void {
     this.stack.unshift(val);
   }
 
-  // Just push a constant on the stack. Constants for now are just ints.
-  push(val : StackVal) : void {
+  // Just push a ref on the stack.
+  push(val : Ref) : void {
     this.stack.push(val);
   }
 
-  pop() : StackVal {
+  // Get a reference from the stack.
+  pop() : Ref {
     return this.stack.pop();
   }
 
+  // Throw everything away. Poor man's garbage collection.
   reset() : void {
     this.stack = [];
   }

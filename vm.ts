@@ -3,6 +3,8 @@
 /// <reference path="stack.ts" />
 /// <reference path="builtins.ts" />
 
+// Map allows us to defer the resolution of labels to program points
+// to runtime.
 interface LabelMap {
 
   [label : string] : CodeAddress;
@@ -27,13 +29,13 @@ class VM {
   // Keeps track of label addresses as we resolve them during runtime.
   private label_map : LabelMap;
 
-  // Return stack.
+  // Return stack. Contains program counters.
   private returns : Array<number>;
 
   // Take the instructions and initialize the program counter, the initial stack, heap, etc.
   constructor(private instructions : Array<Instruction>) {
     this.pc = 0;
-    this.stack = new Stack(0);
+    this.stack = new Stack(0); // level 0.
     this.heap = new Heap();
     this.label_map = {};
     this.returns = [];
@@ -41,19 +43,22 @@ class VM {
 
   // Null check.
   is_not_null(obj : any) : boolean {
-    return !(obj == null || obj == undefined);
+    if (obj == null || obj == undefined) {
+      throw new Error('Null check failed.');
+    }
+    return true;
   }
 
-  // Push top of stack onto previous stack, reset stack, and pc.
+  // Return. Pop program counter from return stack and do some basic bookkeeping.
   ret() : void {
-    var return_value : StackVal = this.stack.pop();
+    var return_value : Ref = this.stack.pop();
     this.stack = this.stack.up;
     this.stack.push(return_value);
     this.pc = this.returns.pop();
   }
 
-  // Dereference a stack value.
-  deref(ref : StackVal) : HeapVal {
+  // Dereference a reference value, i.e. retrieve the heap value it points to.
+  deref(ref : Ref) : Ref {
     return this.heap.get_ref(ref);
   }
 
@@ -103,26 +108,32 @@ class VM {
     this.pc += 1;
   }
 
+  // Generate a basic reference for the given number.
   basic_ref(val : number) : HeapRef {
     return this.heap.basic_ref(val);
   }
 
+  // Generate a function reference with the given program counter.
   func_ref(pc : number) : HeapRef {
     return this.heap.func_ref(pc);
   }
 
+  // Number of elements on the current stack.
   stack_length() : number {
     return this.stack.stack.length;
   }
 
-  vector_ref(vals : Array<HeapRef>) : HeapRef {
+  // Take the given references and wrap them up in a vector reference.
+  vector_ref(vals : Array<Ref>) : Ref {
     return this.heap.vector_ref(vals);
   }
 
-  closure_ref(arg_vector : HeapRef, pc : number) : HeapRef {
+  // Create a reference to a closure with the given argument vector and program counter.
+  closure_ref(arg_vector : Ref, pc : number) : Ref {
     return this.heap.closure_ref({arg_vector: arg_vector, pc: pc});
   }
 
+  // Empty the stack.
   reset() : void {
     this.stack.reset();
   }
