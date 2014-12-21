@@ -68,7 +68,33 @@ class G {
   });
 
   // Current set of builtin functions.
-  static builtins : Parser = G.word_set('+', '-', '*', '/', '=', '%', 'lt', 'gt', 'lte', 'gte');
+  static builtins : Parser = G.word_set('+', '-', '*', '/', '=', '%', 'lt', 'gt', 'lte', 'gte').transformer((x) : ASTNode => {
+    switch(x[0]) {
+      case '+':
+        return new BuiltinPlus({});
+      case '-':
+        return new BuiltinMinus({});
+      case '*':
+        return new BuiltinTimes({});
+      case '/':
+        return new BuiltinDivide({});
+      case '=':
+        return new BuiltinEqual({});
+      case '%':
+        return new BuiltinModulo({});
+      case 'lt':
+        return new BuiltinLessThan({});
+      case 'gt':
+        return new BuiltinGreaterThan({});
+      case 'lte':
+        return new BuiltinLessThanEqual({});
+      case 'gte':
+        return new BuiltinGreaterThanEqual({});
+      default:
+        throw new Error('Unknown builtin.');
+    }
+  });
+
 
   // We currently single out builtin function application.
   static builtin : Parser = G.parenthesize(G.builtins.then(G.delayed_sexpr.zero_or_more())).transformer((x) : BuiltinApplication => {

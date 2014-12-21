@@ -86,6 +86,72 @@ class Tuple extends ASTNode {
 
 }
 
+class BuiltinPlus extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+class BuiltinMinus extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+class BuiltinTimes extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+class BuiltinDivide extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+class BuiltinEqual extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+class BuiltinModulo extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+class BuiltinLessThan extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+class BuiltinGreaterThan extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+class BuiltinLessThanEqual extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+class BuiltinGreaterThanEqual extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+class BuiltinApplication extends ASTNode {
+
+  constructor(private builtin : ASTNode, private args : Array<ASTNode>, public attrs : any) { super(); }
+
+}
+
 class BuiltinFunctionApplication extends ASTNode {
 
   constructor(private name : string, private args : Array<ASTNode>, public attrs : any) { super(); }
