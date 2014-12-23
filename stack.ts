@@ -1,8 +1,6 @@
 // Stack, wraps an array and exposes some basic operations.
 class Stack {
 
-  static builtins : HeapMap = generate_builtins();
-
   // Holds the actual stack contents for this level.
   stack : Array<any>;
 
@@ -28,16 +26,8 @@ class Stack {
     return this.current_repr();
   }
 
-  // Builtins sit in a map indexed by an enum with a special stack number.
-  get_builtin(builtin_location : number) {
-    return Stack.builtins[builtin_location];
-  }
-
   // Need stack number and stack location to reference a variable.
   get_variable(args : StackLocation) : Ref {
-    if (args.stack == -1) { // Working with builtins
-      return this.get_builtin(args.stack_location);
-    }
     if (args.stack == this.level) {
       return this.stack[args.stack_location];
     } else if (args.stack > this.level) {

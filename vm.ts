@@ -1,7 +1,6 @@
 /// <reference path="instruction.ts" />
 /// <reference path="heap.ts" />
 /// <reference path="stack.ts" />
-/// <reference path="builtins.ts" />
 
 // Allows us to defer the resolution of labels to program points to runtime.
 interface LabelMap {

@@ -2,24 +2,28 @@
 /// <reference path="annotationcontext.ts" />
 var I = Instruction;
 
+// Loading a variable requires knowing the stack number and stack location.
 class LoadVarData {
   
   constructor() { }
 
 }
 
+// Just a wrapper around a string. Nothing fancy.
 class LabelData {
 
   constructor(public label : string) { }
 
 }
 
+// Need to know where the function starts and how many arguments it requires.
 class MkFuncData {
 
   constructor(public label : string, public argument_count : number) { }
 
 }
 
+// Stack number and location on that stack.
 class StackLocation {
 
   constructor(public stack_number : number, public stack_location : number) { }
@@ -86,91 +90,136 @@ class Tuple extends ASTNode {
 
 }
 
-class BuiltinPlus extends ASTNode {
+// (and s-expr s-expr)
+class BuiltinAnd extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
 }
 
+// (or s-expr s-expr)
+class BuiltinOr extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+// (not s-expr)
+class BuiltinNot extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+// (xor s-expr s-expr)
+class BuiltinXor extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+}
+
+// (+ 1 1)
+class BuiltinPlus extends ASTNode {
+
+  constructor(public attrs : any) { super(); }
+
+  // loadvar 0, deref, loadvar 1, deref, plus
+  compile() : Array<Instruction> {
+    return null;
+  }
+
+}
+
+// (- 1 1)
 class BuiltinMinus extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
 }
 
+// (* 1 1)
 class BuiltinTimes extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
 }
 
+// (/ 1 1)
 class BuiltinDivide extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
 }
 
+// (= 1 1)
 class BuiltinEqual extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
 }
 
+// (% 1 1)
 class BuiltinModulo extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
 }
 
+// (lt 1 1)
 class BuiltinLessThan extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
 }
 
+// (gt 1 1)
 class BuiltinGreaterThan extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
 }
 
+// (lte 1 1)
 class BuiltinLessThanEqual extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
 }
 
+// (gte 1 1)
 class BuiltinGreaterThanEqual extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
 }
 
+// ({+, -, *, ...} arg arg)
 class BuiltinApplication extends ASTNode {
 
   constructor(private builtin : ASTNode, private args : Array<ASTNode>, public attrs : any) { super(); }
 
+  // eval args; pushstack; eval builtin; return
+  compile() : Array<Instruction> {
+    return null;
+  }
+
 }
 
-class BuiltinFunctionApplication extends ASTNode {
-
-  constructor(private name : string, private args : Array<ASTNode>, public attrs : any) { super(); }
-
-}
-
+// (f arg ...)
 class FunctionApplication extends ASTNode {
 
   constructor(private func : AnonymousFunction, private args : Array<ASTNode>, public attrs : { arg_count : number }) { super(); }
 
 }
 
+// (c arg ...)
 class ClosureApplication extends ASTNode {
 
   constructor(private func : FunctionApplication, private args : Array<ASTNode>, public attrs : { arg_count : number }) { super(); }
 
 }
 
-// s-expressions get refined and this is one of the control structures that we get.
+// (if t true-branch false-branch)
 class IfExpression extends ASTNode {
 
   constructor(private test : ASTNode, private true_branch : ASTNode, private false_branch : ASTNode, public attrs : any) { super(); }

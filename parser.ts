@@ -71,25 +71,33 @@ class G {
   static builtins : Parser = G.word_set('+', '-', '*', '/', '=', '%', 'lt', 'gt', 'lte', 'gte').transformer((x) : ASTNode => {
     switch(x[0]) {
       case '+':
-        return new BuiltinPlus({});
+        return new BuiltinPlus({arity: 2});
       case '-':
-        return new BuiltinMinus({});
+        return new BuiltinMinus({arity: 2});
       case '*':
-        return new BuiltinTimes({});
+        return new BuiltinTimes({arity: 2});
       case '/':
-        return new BuiltinDivide({});
+        return new BuiltinDivide({arity: 2});
       case '=':
-        return new BuiltinEqual({});
+        return new BuiltinEqual({arity: 2});
       case '%':
-        return new BuiltinModulo({});
+        return new BuiltinModulo({arity: 2});
       case 'lt':
-        return new BuiltinLessThan({});
+        return new BuiltinLessThan({arity: 2});
       case 'gt':
-        return new BuiltinGreaterThan({});
+        return new BuiltinGreaterThan({arity: 2});
       case 'lte':
-        return new BuiltinLessThanEqual({});
+        return new BuiltinLessThanEqual({arity: 2});
       case 'gte':
-        return new BuiltinGreaterThanEqual({});
+        return new BuiltinGreaterThanEqual({arity: 2});
+      case 'and':
+        return new BuiltinAnd({arity: 2});
+      case 'or':
+        return new BuiltinOr({arity: 2});
+      case 'not':
+        return new BuiltinNot({arity: 1});
+      case 'xor':
+        return new BuiltinXor({arity: 1});
       default:
         throw new Error('Unknown builtin.');
     }
@@ -101,7 +109,7 @@ class G {
     var non_parens = x[1];
     var builtin = non_parens[0];
     var args = non_parens[1];
-    return new BuiltinFunctionApplication(builtin, args, {});
+    return new BuiltinApplication(builtin, args, {});
   });
 
   // (if s-expr s-expr s-expr).
