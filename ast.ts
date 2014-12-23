@@ -95,6 +95,11 @@ class BuiltinAnd extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
+  // loadvar 0, deref, loadvar 1, deref, and
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.AND()];
+  }
+
 }
 
 // (or s-expr s-expr)
@@ -102,6 +107,10 @@ class BuiltinOr extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
+  // Same as and except final instruction is "or".
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.OR()];
+  }
 }
 
 // (not s-expr)
@@ -109,12 +118,20 @@ class BuiltinNot extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.NOT()];
+  }
+
 }
 
 // (xor s-expr s-expr)
 class BuiltinXor extends ASTNode {
 
   constructor(public attrs : any) { super(); }
+
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.XOR()];
+  }
 
 }
 
@@ -125,7 +142,7 @@ class BuiltinPlus extends ASTNode {
 
   // loadvar 0, deref, loadvar 1, deref, plus
   compile() : Array<Instruction> {
-    return null;
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.PLUS()];
   }
 
 }
@@ -135,12 +152,20 @@ class BuiltinMinus extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.MINUS()];
+  }
+
 }
 
 // (* 1 1)
 class BuiltinTimes extends ASTNode {
 
   constructor(public attrs : any) { super(); }
+
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.TIMES()];
+  }
 
 }
 
@@ -149,12 +174,20 @@ class BuiltinDivide extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.DIVIDE()];
+  }
+
 }
 
 // (= 1 1)
 class BuiltinEqual extends ASTNode {
 
   constructor(public attrs : any) { super(); }
+
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.EQUAL()];
+  }
 
 }
 
@@ -163,12 +196,20 @@ class BuiltinModulo extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.MOD()];
+  }
+
 }
 
 // (lt 1 1)
 class BuiltinLessThan extends ASTNode {
 
   constructor(public attrs : any) { super(); }
+
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.LT()];
+  }
 
 }
 
@@ -177,6 +218,10 @@ class BuiltinGreaterThan extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.GT()];
+  }
+
 }
 
 // (lte 1 1)
@@ -184,12 +229,20 @@ class BuiltinLessThanEqual extends ASTNode {
 
   constructor(public attrs : any) { super(); }
 
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.LTE()];
+  }
+
 }
 
 // (gte 1 1)
 class BuiltinGreaterThanEqual extends ASTNode {
 
   constructor(public attrs : any) { super(); }
+
+  compile() : Array<Instruction> {
+    return [I.LOADVARFAST(0), I.DEREF(), I.LOADVARFAST(1), I.DEREF(), I.GTE()];
+  }
 
 }
 
