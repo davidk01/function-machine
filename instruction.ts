@@ -29,8 +29,73 @@ class LoadArguments implements InstructionArgs {
 class Instruction { 
 
   private static is_not_null(obj : any) : boolean {
-    throw new Error('Null object.');
-    return true;
+    return !!obj || (x => { throw new Error('Null object.'); })();
+  }
+
+  static PLUS() {
+    return new Instruction('plus', null);
+  }
+
+  static MINUS() {
+    return new Instruction('minus', null);
+  }
+
+  static TIMES() {
+    return new Instruction('times', null);
+  }
+
+  static DIVIDE() {
+    return new Instruction('divide', null);
+  }
+
+  static EQUAL() {
+    return new Instruction('equal', null);
+  }
+
+  static MOD() {
+    return new Instruction('mod', null);
+  }
+
+  static LT() {
+    return new Instruction('lt', null);
+  }
+
+  static GT() {
+    return new Instruction('gt', null);
+  }
+
+  static LTE() {
+    return new Instruction('lte', null);
+  }
+
+  static GTE() {
+    return new Instruction('gte', null);
+  }
+
+  static XOR() {
+    return new Instruction('xor', null);
+  }
+
+  static NOT() {
+    return new Instruction('not', null);
+  }
+
+  static AND() {
+    return new Instruction('and', null);
+  }
+
+  static OR() {
+    return new Instruction('or', null);
+  }
+
+  // Take whatever is on top of the stack and try to dereference it.
+  static DEREF() {
+    return new Instruction('deref', null);
+  }
+
+  // Just a location on the current stack.
+  static LOADVARFAST(loc : number) {
+    return new Instruction('loadvarfast', loc);
   }
 
   // Load a variable from the stack location specified by stack number. We figure this stuff out
