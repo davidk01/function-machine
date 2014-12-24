@@ -168,7 +168,7 @@ class VM {
         break;
       case 'pushstack': // Push specified number of values onto new stack and preserve the order
         var new_stack : Stack = this.stack.increment();
-        for (var i = 0; i < args.count; i++) {
+        for (var i = 0; i < args; i++) {
           new_stack.unshift(this.stack.pop());
         }
         this.stack = new_stack;

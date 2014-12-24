@@ -33,6 +33,8 @@ class StackLocation {
 // Top of AST hierarchy.
 class ASTNode { 
 
+  attrs : any;
+
   symbol() : boolean { return false; }
 
   compile() : Array<Instruction> {
@@ -253,7 +255,13 @@ class BuiltinApplication extends ASTNode {
 
   // eval args; pushstack; eval builtin; return
   compile() : Array<Instruction> {
-    return null;
+    var arity : number = this.builtin.attrs.arity;
+    if (this.args.length > arity) {
+      throw new Error('Too many arguments.');
+    }
+    var compiled_args = this.args.reduce((previous : Array<Instruction>, current : ASTNode) => previous.concat(current.compile()), []);
+    var compiled_builtin = this.builtin.compile();
+    return compiled_args.concat(I.PUSHSTACK(arity)).concat(compiled_builtin).concat(I.RETURN());
   }
 
 }
@@ -306,7 +314,7 @@ class FunctionCall extends ASTNode {
     }, []);
     var compiled_func = this.func.compile();
     // We push an extra argument because the last argument is going to be the reference to the function we want to apply.
-    return compiled_args.concat(compiled_func).concat(I.PUSHSTACK({count: this.args.length + 1}), I.APPLY());
+    return compiled_args.concat(compiled_func).concat(I.PUSHSTACK(this.args.length + 1), I.APPLY());
   }
 
 }

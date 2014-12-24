@@ -6,12 +6,6 @@ class ArgCheckArguments implements InstructionArgs {
 
 }
 
-class PushStackArguments implements InstructionArgs {
-
-  constructor(public count : number) { }
-
-}
-
 class JumpArguments implements InstructionArgs {
 
   constructor(public label : string) { }
@@ -117,8 +111,8 @@ class Instruction {
   }
 
   // Push 'n' number of variables onto a new stack.
-  static PUSHSTACK(args : PushStackArguments) {
-    this.is_not_null(args.count);
+  static PUSHSTACK(args : number) {
+    this.is_not_null(args);
     return new Instruction('pushstack', args);
   }
 
