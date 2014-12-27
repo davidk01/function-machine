@@ -179,10 +179,7 @@ class VM {
       case 'apply': // Apply the function reference on top of stack
         this.returns.push(this.pc);
         var func_ref : Ref = this.stack.pop();
-        if (func_ref.type == RefType.BUILTIN) {
-          func_ref.value(this);
-          return;
-        } else if (func_ref.type == RefType.FUNCTION) {
+        if (func_ref.type == RefType.FUNCTION) {
           var destination : number = this.deref(func_ref).value;
           this.pc = destination;
           return;
@@ -195,6 +192,16 @@ class VM {
           return;
         }
         throw new Error('Can not apply non-function reference.');
+      case 'loadvarfast':
+        this.stack.push(this.stack.stack[args]);
+        break;
+      case 'deref':
+        var ref = this.stack.pop();
+        if (ref.type === RefType.REF) {
+          this.stack.push(this.heap.deref(ref));
+          return;
+        }
+        throw new Error('Can not deref non-reference type.');
       case 'argcheck':
         // happy case. don't need to do anything.
         if (args.count === this.stack_length()) {

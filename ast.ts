@@ -254,14 +254,18 @@ class BuiltinApplication extends ASTNode {
   constructor(private builtin : ASTNode, private args : Array<ASTNode>, public attrs : any) { super(); }
 
   // eval args; pushstack; eval builtin; return
+  // Builtins are treated differently than regular functions. TODO: Fix this.
   compile() : Array<Instruction> {
     var arity : number = this.builtin.attrs.arity;
     if (this.args.length > arity) {
       throw new Error('Too many arguments.');
     }
+    if (this.args.length < arity) {
+      throw new Error('Too few arguments.');
+    }
     var compiled_args = this.args.reduce((previous : Array<Instruction>, current : ASTNode) => previous.concat(current.compile()), []);
     var compiled_builtin = this.builtin.compile();
-    return compiled_args.concat(I.PUSHSTACK(arity)).concat(compiled_builtin).concat(I.RETURN());
+    return compiled_args.concat(I.PUSHSTACK(arity)).concat(compiled_builtin).concat(I.POPSTACKRETURN());
   }
 
 }

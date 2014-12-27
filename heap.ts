@@ -1,6 +1,6 @@
-// All the reference types.
+// All the reference kinds.
 enum RefType {
-  REF, BASIC, VECTOR, BUILTIN, FUNCTION, CLOSURE
+  REF, BASIC, VECTOR, FUNCTION, CLOSURE
 }
 
 // Reference type.
@@ -15,7 +15,6 @@ class Ref {
     ref_map[RefType.REF] = 'R';
     ref_map[RefType.BASIC] = 'B';
     ref_map[RefType.VECTOR] = 'V';
-    ref_map[RefType.BUILTIN] = 'I';
     ref_map[RefType.FUNCTION] = 'F';
     ref_map[RefType.CLOSURE] = 'C';
     var repr = ref_map[this.type];

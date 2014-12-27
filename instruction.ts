@@ -23,7 +23,10 @@ class LoadArguments implements InstructionArgs {
 class Instruction { 
 
   private static is_not_null(obj : any) : boolean {
-    return !!obj || (x => { throw new Error('Null object.'); })();
+    if (obj === null || obj === undefined) {
+      throw new Error('Null object.');
+    }
+    return true;
   }
 
   static PLUS() {
@@ -103,6 +106,12 @@ class Instruction {
   // In case there aren't enough arguments we need to return a closure.
   static ARGCHECK(args : ArgCheckArguments) {
     return new Instruction('argcheck', args);
+  }
+
+  // Not really a return but something that just pops the stack and puts whatever was on top onto
+  // the previous stack.
+  static POPSTACKRETURN() {
+    return new Instruction('popstackreturn', null);
   }
 
   // Return instruction.
