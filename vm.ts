@@ -198,7 +198,7 @@ class VM {
       case 'deref':
         var ref = this.stack.pop();
         if (ref.type === RefType.REF) {
-          this.stack.push(this.heap.deref(ref));
+          this.stack.push(this.deref(ref));
           return;
         }
         throw new Error('Can not deref non-reference type.');
@@ -217,6 +217,21 @@ class VM {
         break;
       case 'loadvar': // Load a variable from a specific stack and location
         this.stack.push(this.stack.get_variable(args));
+        break;
+      case 'plus': // basic-arg1 basic-arg2 -- arg1 + arg2 
+        var arg1 = this.stack.pop();
+        if (arg1.type === RefType.BASIC) {
+          var arg2 = this.stack.pop();
+          if (arg2.type === RefType.BASIC) {
+            this.stack.push(this.basic_ref(arg1.value + arg2.value));
+            return;
+          }
+        }
+        throw new Error('Can not add non-basic argument types.');
+      case 'popstackreturn':
+        var return_ref = this.stack.pop();
+        this.stack = this.stack.up;
+        this.stack.push(return_ref);
         break;
       default:
         throw new Error('Unrecognized instruction.');

@@ -54,12 +54,14 @@ class Heap {
     throw new Error('Can not de-reference something that is not a reference.');
   }
 
-  // One place to do the index incrementing and assignment.
+  // This method always returns a REF tagged reference and the value it points to is the actual
+  // tagged value.
   private ref_maker(type : RefType, value : any) : Ref {
-    var new_ref : Ref = new Ref(type, this.current_index);
-    this.heap[this.current_index] = value;
+    var current_index = this.current_index;
+    var new_ref : Ref = new Ref(type, value);
+    this.heap[current_index] = new_ref;
     this.current_index += 1;
-    return new_ref;
+    return new Ref(RefType.REF, current_index);
   }
 
   // Generate a function pointer.
